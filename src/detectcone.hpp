@@ -17,88 +17,55 @@
  * USA.
  */
 
-#ifndef OPENDLV_SIM_CFSD18_COGNITION_BLACKBOX_HPP
-#define OPENDLV_SIM_CFSD18_COGNITION_BLACKBOX_HPP
+#ifndef OPENDLV_SIM_CFSD18_PERCEPTION_DETECTCONE_HPP
+#define OPENDLV_SIM_CFSD18_PERCEPTION_DETECTCONE_HPP
 
+#include "cluon-complete.hpp"
 #include <opendlv-standard-message-set.hpp>
-#include <cluon-complete.hpp>
-#include <Eigen/Dense>
-#include <fstream>
-#include <iostream>
-#include <thread>
-#include <cmath>
-#include <iomanip>
-#include <sstream>
-#include <list>
-#include <vector>
-#include <algorithm>
-#include <string>
-#include "neat/neat.h"
-#include "neat/network.h"
-#include "neat/population.h"
-#include "neat/organism.h"
-#include "neat/genome.h"
-#include "neat/species.h"
 
-class BlackBox {
+#include <cmath>
+#include <Eigen/Dense>
+
+class DetectCone {
  public:
-  BlackBox(std::map<std::string, std::string>);
-  BlackBox(BlackBox const &) = delete;
-  BlackBox &operator=(BlackBox const &) = delete;
-  virtual ~BlackBox();
-  virtual void nextContainer(cluon::data::Envelope &);
+  DetectCone(std::map<std::string, std::string> commandlineArguments);
+  DetectCone(DetectCone const &) = delete;
+  DetectCone &operator=(DetectCone const &) = delete;
+  ~DetectCone();
+  void nextContainer(cluon::data::Envelope &);
 
  private:
+  uint16_t m_cid;
+  uint32_t m_senderStamp;
+  float m_detectRange;
+  float m_detectWidth;
+  bool m_fakeSlamActivated;
+  int m_nConesFakeSlam;
+  float m_startX;
+  float m_startY;
+  float m_startHeading;
+  std::string m_filename;
+  float m_heading;
+  Eigen::ArrayXXf m_location;
+  Eigen::ArrayXXf m_leftCones;
+  Eigen::ArrayXXf m_rightCones;
+  Eigen::ArrayXXf m_smallCones;
+  Eigen::ArrayXXf m_bigCones;
+  bool m_orangeVisibleInSlam;
+  std::mutex m_locationMutex;
+  int m_sendId;
+  std::mutex m_kinematicStateMutex;
+  Eigen::VectorXf m_kinematicState;
+  const double RAD2DEG = 57.295779513082325; // 1.0 / DEG2RAD
+
   void setUp();
   void tearDown();
-
-  void initializeCollection();
-  void sortIntoSideArrays(Eigen::MatrixXd, int, int, int, int);
-  void generateSurfaces(Eigen::ArrayXXf, Eigen::ArrayXXf);
-  Eigen::MatrixXd Spherical2Cartesian(double, double, double);
-
-  std::mutex m_stateMutex;
-  uint16_t m_cid;
-  float m_maxSteering;
-  float m_maxAcceleration;
-  float m_maxDeceleration;
-  float m_receiveTimeLimit;
-  float m_vx;
-  float m_vy;
-  float m_yawRate;
-  NEAT::Network *m_net;
-  bool m_newFrame;
-  bool m_directionOK;
-  bool m_distanceOK;
-  bool m_runOK;
-  std::map< double, float > m_directionFrame;
-  std::map< double, float > m_distanceFrame;
-  std::map< double, int > m_typeFrame;
-  std::map< double, float > m_directionFrameBuffer;
-  std::map< double, float > m_distanceFrameBuffer;
-  std::map< double, int > m_typeFrameBuffer;
-  int m_lastDirectionId;
-  int m_lastDistanceId;
-  int m_lastTypeId;
-  bool m_newDirectionId;
-  bool m_newDistanceId;
-  bool m_newTypeId;
-  std::chrono::time_point<std::chrono::system_clock> m_directionTimeReceived;
-  std::chrono::time_point<std::chrono::system_clock> m_distanceTimeReceived;
-  std::chrono::time_point<std::chrono::system_clock> m_typeTimeReceived;
-  uint64_t m_nConesInFrame;
-  int m_objectPropertyId;
-  int m_directionId;
-  int m_distanceId;
-  int m_typeId;
-  std::mutex m_directionMutex = {};
-  std::mutex m_distanceMutex = {};
-  std::mutex m_typeMutex = {};
-  int m_surfaceId;
-
-  const double DEG2RAD = 0.017453292522222; // PI/180.0
-
+  void readMap(std::string);
+  void body(cluon::OD4Session &od4);
+  Eigen::ArrayXXf simConeDetectorBox(Eigen::ArrayXXf, Eigen::ArrayXXf, float, float, float);
+  Eigen::ArrayXXf simConeDetectorSlam(Eigen::ArrayXXf, Eigen::ArrayXXf, float, int);
+  void sendMatchedContainer(Eigen::MatrixXd, int, int, cluon::OD4Session &od4);
+  void Cartesian2Spherical(double, double, double, opendlv::logic::sensation::Point &);
 };
-
 
 #endif

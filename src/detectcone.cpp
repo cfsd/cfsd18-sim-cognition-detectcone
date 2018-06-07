@@ -18,591 +18,440 @@
 */
 
 #include <iostream>
-#include <cstdlib>
-#include "blackbox.hpp"
+#include <fstream>
+#include <sstream>
+#include <thread>
 
-BlackBox::BlackBox(std::map<std::string, std::string> commandlineArguments) :
- m_stateMutex()
-, m_cid{static_cast<uint16_t>(std::stoi(commandlineArguments["cid"]))}
-, m_maxSteering{(commandlineArguments["maxSteering"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["maxSteering"]))) : (25.0f)}
-, m_maxAcceleration{(commandlineArguments["maxAcceleration"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["maxAcceleration"]))) : (5.0f)}
-, m_maxDeceleration{(commandlineArguments["maxDeceleration"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["maxDeceleration"]))) : (5.0f)}
-, m_receiveTimeLimit{(commandlineArguments["receiveTimeLimit"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["receiveTimeLimit"]))) : (0.0001f)}
-, m_vx()
-, m_vy()
-, m_yawRate()
-, m_net()
-, m_newFrame{true}
-, m_directionOK{false}
-, m_distanceOK {false}
-, m_runOK{true}
-, m_directionFrame{}
-, m_distanceFrame{}
-, m_typeFrame{}
-, m_directionFrameBuffer{}
-, m_distanceFrameBuffer{}
-, m_typeFrameBuffer{}
-, m_lastDirectionId{}
-, m_lastDistanceId{}
-, m_lastTypeId{}
-, m_newDirectionId{true}
-, m_newDistanceId{true}
-, m_newTypeId{true}
-, m_directionTimeReceived{}
-, m_distanceTimeReceived{}
-, m_typeTimeReceived{}
-, m_nConesInFrame{}
-, m_objectPropertyId{}
-, m_directionId{}
-, m_distanceId{}
-, m_typeId{}
-, m_surfaceId{}
+#include "detectcone.hpp"
+
+DetectCone::DetectCone(std::map<std::string, std::string> commandlineArguments) :
+ m_cid{static_cast<uint16_t>(std::stoi(commandlineArguments["cid"]))}
+, m_senderStamp{(commandlineArguments["senderStamp"].size() != 0) ? (static_cast<uint32_t>(std::stoi(commandlineArguments["senderStamp"]))) : (201)}
+, m_detectRange{(commandlineArguments["detectRange"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["detectRange"]))) : (11.5f)}
+, m_detectWidth{(commandlineArguments["detectWidth"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["detectWidth"]))) : (4.0f)}
+, m_fakeSlamActivated{(commandlineArguments["fakeSlamActivated"].size() != 0) ? (static_cast<bool>(std::stoi(commandlineArguments["fakeSlamActivated"]))) : (1)}
+, m_nConesFakeSlam{(commandlineArguments["nConesFakeSlam"].size() != 0) ? (static_cast<int>(std::stoi(commandlineArguments["nConesFakeSlam"]))) : (5)}
+, m_startX{(commandlineArguments["startX"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["startX"]))) : (0.0f)}
+, m_startY{(commandlineArguments["startY"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["startY"]))) : (0.0f)}
+, m_startHeading{(commandlineArguments["startHeading"].size() != 0) ? (static_cast<int>(std::stof(commandlineArguments["startHeading"]))) : (0.0f)}
+, m_filename{(commandlineArguments["mapFilename"].size() != 0) ? (commandlineArguments["mapFilename"]) : ("trackFSG.txt")}
+, m_heading()
+, m_location()
+, m_leftCones()
+, m_rightCones()
+, m_smallCones()
+, m_bigCones()
+, m_orangeVisibleInSlam()
+, m_locationMutex()
+, m_sendId()
+, m_kinematicStateMutex()
+, m_kinematicState()
 {
-  m_surfaceId = rand();
-  /*std::cout<<"m_runOK: "<<m_runOK<<std::endl;
-  std::cout<<"m_newFrame: "<<m_newFrame<<std::endl;
-  std::cout<<"m_directionOK: "<<m_directionOK<<std::endl;
-  std::cout<<"m_newDirectionId: "<<m_newDirectionId<<std::endl;*/
-  setUp();
+  m_sendId = rand();
+  m_kinematicState.resize(6);
 }
 
-BlackBox::~BlackBox()
+DetectCone::~DetectCone()
 {
 }
 
-void BlackBox::setUp()
+void DetectCone::nextContainer(cluon::data::Envelope &a_container)
 {
-  std::cout << "Setting up blackbox with maxSteering = " << m_maxSteering << ", maxAcceleration = " << m_maxAcceleration << ", maxDeceleration = " << m_maxDeceleration << std::endl;
-  NEAT::Population *pop=0;
-  NEAT::Genome *start_genome;
-  char curword[20];
-  int id;
-  int pop_size = 1;
-
-  //Read in the start Genome
-  std::string const filename = "cfsdstartgenes";
-  std::string const HOME = "/opt/opendlv.data/";
-  std::string infile = HOME + filename;
-
-  std::ifstream iFile(infile);
-  iFile>>curword;
-  iFile>>id;
-  std::cout<<"Reading in Genome id "<<id<<std::endl;
-  start_genome=new NEAT::Genome(id,iFile);
-  iFile.close();
-  pop=new NEAT::Population(start_genome,pop_size);
-  pop->verify();
-
-  std::vector<NEAT::Organism*>::iterator curorg;
-  for(curorg=(pop->organisms).begin();curorg!=(pop->organisms).end();++curorg) {
-    NEAT::Organism *org = *curorg;
-    NEAT::Network *net;
-    net=org->net;
-    m_net = net;
-  }
-  std::cout << "Network extracted" << std::endl;
-} // End of setUp
-
-void BlackBox::tearDown()
-{
-}
-
-void BlackBox::nextContainer(cluon::data::Envelope &a_container)
-{
-  if(a_container.dataType() == opendlv::logic::perception::ObjectProperty::ID()){
-      //std::cout << "RECIEVED AN OBJECTPROPERY!" << std::endl;
-      auto object = cluon::extractMessage<opendlv::logic::perception::ObjectProperty>(std::move(a_container));
-      int objectId = object.objectId();
-      auto nConesInFrame = object.property();
-
-      if (m_newFrame) { // If true, a frame has just been sent for processing
-        m_newFrame = false;
-        m_nConesInFrame = std::stoul(nConesInFrame);
-        m_objectPropertyId = objectId; // Currently not used.
-      }
+  if (a_container.dataType() == opendlv::sim::Frame::ID())
+  {
+    auto frame = cluon::extractMessage<opendlv::sim::Frame>(std::move(a_container));
+    float x = frame.x();
+    float y = frame.y();
+    float yaw = frame.yaw();
+    {
+      std::unique_lock<std::mutex> lockLocation(m_locationMutex);
+      m_location << x,y;
+      m_heading = yaw;
+    }
   }
 
-  if (a_container.dataType() == opendlv::logic::perception::ObjectDirection::ID()) {
-      int objectId;
+  if (a_container.dataType() == opendlv::logic::sensation::Equilibrioception::ID())
+  {
+    auto kinState = cluon::extractMessage<opendlv::logic::sensation::Equilibrioception>(std::move(a_container));
+    float vx = kinState.vx();
+    float vy = kinState.vy();
+    float vxDot = kinState.vz();
+    float yawRate = kinState.yawRate();
+    float vyDot = kinState.rollRate();
+    float yawRateDot = kinState.pitchRate();
+    {
+      std::unique_lock<std::mutex> lockKin(m_kinematicStateMutex);
+      m_kinematicState << vx,
+                          vy,
+                          yawRate,
+                          vxDot,
+                          vyDot,
+                          yawRateDot;
+    }
+  }
+
+}
+
+void DetectCone::body(cluon::OD4Session &od4)
+{
+    Eigen::ArrayXXf locationCopy;
+    float headingCopy;
+    {
+      std::unique_lock<std::mutex> lockLocation(m_locationMutex);
+      locationCopy = m_location;
+      headingCopy = m_heading;
+    }
+    Eigen::ArrayXXf detectedConesLeft, detectedConesRight, detectedConesSmall, detectedConesBig;
+
+    if(m_fakeSlamActivated)
+    {
+      detectedConesLeft = DetectCone::simConeDetectorSlam(m_leftCones, locationCopy, headingCopy, m_nConesFakeSlam);
+      detectedConesRight = DetectCone::simConeDetectorSlam(m_rightCones, locationCopy, headingCopy, m_nConesFakeSlam);
+
+      if(m_orangeVisibleInSlam)
       {
-        std::unique_lock<std::mutex> lockDirection(m_directionMutex);
-        auto object = cluon::extractMessage<opendlv::logic::perception::ObjectDirection>(std::move(a_container));
-        objectId = object.objectId();
-        cluon::data::TimeStamp containerStamp = a_container.sampleTimeStamp();
-        double timeStamp = containerStamp.microseconds(); // Save timeStamp for sorting purposes;
+        // If the orange cones are set to visible in the detection they will be transformed into local coordinates and stored
+        m_orangeVisibleInSlam = false;
+        Eigen::MatrixXf rotationMatrix(2,2);
+        rotationMatrix << std::cos(-headingCopy),-std::sin(-headingCopy),
+                          std::sin(-headingCopy),std::cos(-headingCopy);
 
-          if (m_newDirectionId) {
-            m_directionId = (objectId!=m_lastDirectionId)?(objectId):(-1); // Update object id if it is not remains from an already run frame
-            m_newDirectionId=(m_directionId !=-1)?(false):(true); // Set new id to false while collecting current frame id, or keep as true if current id is from an already run frame
-          }
+        Eigen::ArrayXXf tmpLocationSmall(m_smallCones.rows(),2);
+        (tmpLocationSmall.col(0)).fill(locationCopy(0));
+        (tmpLocationSmall.col(1)).fill(locationCopy(1));
+        Eigen::ArrayXXf tmpLocationBig(m_bigCones.rows(),2);
+        (tmpLocationBig.col(0)).fill(locationCopy(0));
+        (tmpLocationBig.col(1)).fill(locationCopy(1));
 
-          float angle = object.azimuthAngle(); //Unpack message
-
-          if (objectId == m_directionId) {
-            m_directionFrame[timeStamp] = angle;
-            m_directionTimeReceived = std::chrono::system_clock::now(); //Store time for latest message recieved
-          } else if (objectId != m_lastDirectionId){ // If message doesn't belong to current or previous frame.
-            m_directionFrameBuffer[timeStamp] = angle; // Place message content coordinates in buffer
-          }
+        detectedConesSmall = ((rotationMatrix*(((m_smallCones-tmpLocationSmall).matrix()).transpose())).transpose()).array();
+        detectedConesBig = ((rotationMatrix*(((m_bigCones-tmpLocationBig).matrix()).transpose())).transpose()).array();
       }
-      auto wait = std::chrono::system_clock::now(); // Time point now
-      std::chrono::duration<double> dur = wait-m_directionTimeReceived; // Duration since last message recieved to m_surfaceFrame
-      double duration = (m_directionId!=-1)?(dur.count()):(-1.0); // Duration value of type double in seconds OR -1 which prevents running the surface while ignoring messages from an already run frame
-      if (duration>m_receiveTimeLimit) { //Only for debug
-        std::cout<<"DURATION TIME DIRECTION EXCEEDED"<<std::endl;
-        std::cout<<m_directionFrame.size()<<" directionFrames to run"<<"\n";
-        std::cout<<m_directionFrameBuffer.size()<<" directionFrames in buffer"<<"\n";
-      }
-      // Run if frame is full or if we have waited to long for the remaining messages
-      if ((m_directionFrame.size()==m_nConesInFrame || duration>m_receiveTimeLimit)) { //!m_newFrame && objectId==m_surfaceId &&
-        m_directionOK=true;
-
-        /*std::cout<<"m_directionOK"<<"\n";*/
-      }
-  }
-
-  else if(a_container.dataType() == opendlv::logic::perception::ObjectDistance::ID()){
-    int objectId;
-    {
-      std::unique_lock<std::mutex> lockDistance(m_distanceMutex);
-      auto object = cluon::extractMessage<opendlv::logic::perception::ObjectDistance>(std::move(a_container));
-      objectId = object.objectId();
-      cluon::data::TimeStamp containerStamp = a_container.sampleTimeStamp();
-      double timeStamp = containerStamp.microseconds(); // Save timeStamp for sorting purposes;
-
-      if (m_newDistanceId) {
-        m_distanceId = (objectId!=m_lastDistanceId)?(objectId):(-1); // Update object id if it is not remains from an already run frame
-        m_newDistanceId=(m_distanceId !=-1)?(false):(true); // Set new id to false while collecting current frame id, or keep as true if current id is from an already run frame
-      }
-
-      float distance = object.distance(); //Unpack message
-
-      if (objectId == m_distanceId) {
-        m_distanceFrame[timeStamp] = distance;
-        m_distanceTimeReceived = std::chrono::system_clock::now(); //Store time for latest message recieved
-      } else if (objectId != m_lastDistanceId){ // If message doesn't belong to current or previous frame.
-        m_distanceFrameBuffer[timeStamp] = distance; // Place message content coordinates in buffer
-      }
-    }
-    auto wait = std::chrono::system_clock::now(); // Time point now
-    std::chrono::duration<double> dur = wait-m_distanceTimeReceived; // Duration since last message recieved to m_surfaceFrame
-    double duration = (m_distanceId!=-1)?(dur.count()):(-1.0); // Duration value of type double in seconds OR -1 which prevents running the surface while ignoring messages from an already run frame
-    if (duration>m_receiveTimeLimit) { //Only for debug
-      std::cout<<"DURATION TIME DISTANCE EXCEEDED"<<std::endl;
-      std::cout<<m_distanceFrame.size()<<" distanceFrames to run"<<"\n";
-      std::cout<<m_distanceFrameBuffer.size()<<" distanceFrames in buffer"<<"\n";
-    }
-    // Run if frame is full or if we have waited to long for the remaining messages
-    if ((m_distanceFrame.size()==m_nConesInFrame || duration>m_receiveTimeLimit)) { //!m_newFrame && objectId==m_surfaceId &&
-      m_distanceOK=true;
-
-      /*std::cout<<"m_distanceOK"<<"\n";*/
-    }
-  }
-
-  else if(a_container.dataType() == opendlv::logic::perception::ObjectType::ID()){
-    int objectId;
-    {
-      std::unique_lock<std::mutex> lockType(m_typeMutex);
-      auto object = cluon::extractMessage<opendlv::logic::perception::ObjectType>(std::move(a_container));
-      objectId = object.objectId();
-      cluon::data::TimeStamp containerStamp = a_container.sampleTimeStamp();
-      double timeStamp = containerStamp.microseconds(); // Save timeStamp for sorting purposes;
-
-      if (m_newTypeId) {
-        m_typeId = (objectId!=m_lastTypeId)?(objectId):(-1); // Update object id if it is not remains from an already run frame
-        m_newTypeId=(m_typeId !=-1)?(false):(true); // Set new id to false while collecting current frame id, or keep as true if current id is from an already run frame
-      }
-
-      int type = object.type(); //Unpack message
-
-      if (objectId == m_typeId) {
-        m_typeFrame[timeStamp] = type;
-        m_typeTimeReceived = std::chrono::system_clock::now(); //Store time for latest message recieved
-      } else if (objectId != m_lastTypeId){ // If message doesn't belong to current or previous frame.
-        m_typeFrameBuffer[timeStamp] = type; // Place message content in buffer
-      }
-    }
-    auto wait = std::chrono::system_clock::now(); // Time point now
-    std::chrono::duration<double> dur = wait-m_typeTimeReceived; // Duration since last message recieved to m_surfaceFrame
-    double duration = (m_typeId!=-1)?(dur.count()):(-1.0); // Duration value of type double in seconds OR -1 which prevents running the surface while ignoring messages from an already run frame
-    if (duration>m_receiveTimeLimit) { //Only for debug
-      std::cout<<"DURATION TIME TYPE EXCEEDED"<<std::endl;
-      std::cout<<m_typeFrame.size()<<" typeFrames to run"<<"\n";
-      std::cout<<m_typeFrameBuffer.size()<<" typeFrames in buffer"<<"\n";
-    }
-    // Run if frame is full or if we have waited to long for the remaining messages
-    if ((m_typeFrame.size()==m_nConesInFrame || duration>m_receiveTimeLimit) && m_runOK) { //!m_newFrame && objectId==m_surfaceId &&
-      if (m_directionOK && m_distanceOK) {
-        m_runOK = false;
-        //std::cout<<"m_runOK"<<std::endl;
-        std::thread coneCollector(&BlackBox::initializeCollection, this);
-        coneCollector.detach();
-      }
-
-    }
-  }
-  else if(a_container.dataType() == opendlv::sim::KinematicState::ID()){
-  //    std::cout << "RECIEVED A KINEMATICSTATE!" << std::endl;
-    auto kinematicState = cluon::extractMessage<opendlv::sim::KinematicState>(std::move(a_container));
-    {
-      std::unique_lock<std::mutex> lockState(m_stateMutex);
-      m_vx = kinematicState.vx();
-      m_vy = kinematicState.vy();
-      m_yawRate = kinematicState.yawRate();
-    }
-  }
-}
-
-/*void BlackBox::nextContainer(cluon::data::Envelope &a_container)
-{
-
-  if(a_container.dataType() == opendlv::logic::perception::Object::ID()){
-    std::cout << "RECIEVED AN OBJECT!" << std::endl;
-    m_lastTimeStamp = a_container.sampleTimeStamp();
-    auto coneObject = cluon::extractMessage<opendlv::logic::perception::Object>(std::move(a_container));
-    int conesInFrame = coneObject.objectId();
-
-    if (m_newFrame){
-       m_newFrame = false;
-       std::thread coneCollector(&BlackBox::initializeCollection, this, conesInFrame);
-       coneCollector.detach();
-    }
-  }
-
-
-  if (a_container.dataType() == opendlv::logic::perception::ObjectDirection::ID()) {
-    //std::cout << "Recieved Direction" << std::endl;
-    //Retrive data and timestamp
-    m_lastTimeStamp = a_container.sampleTimeStamp();
-    auto coneDirection = cluon::extractMessage<opendlv::logic::perception::ObjectDirection>(std::move(a_container));
-    uint32_t objectId = coneDirection.objectId();
-    {
-      std::unique_lock<std::mutex> lockCone(m_coneMutex);
-      m_coneCollector(0,objectId) = coneDirection.azimuthAngle();
-      m_coneCollector(1,objectId) = coneDirection.zenithAngle();
-    }
-  }
-
-  else if(a_container.dataType() == opendlv::logic::perception::ObjectDistance::ID()){
-
-    m_lastTimeStamp = a_container.sampleTimeStamp();
-    auto coneDistance = cluon::extractMessage<opendlv::logic::perception::ObjectDistance>(std::move(a_container));
-    uint32_t objectId = coneDistance.objectId();
-    {
-      std::unique_lock<std::mutex> lockCone(m_coneMutex);
-      m_coneCollector(2,objectId) = coneDistance.distance();
-    }
-  }
-
-  else if(a_container.dataType() == opendlv::logic::perception::ObjectType::ID()){
-
-    //std::cout << "Recieved Type" << std::endl;
-    m_lastTimeStamp = a_container.sampleTimeStamp();
-    auto coneType = cluon::extractMessage<opendlv::logic::perception::ObjectType>(std::move(a_container));
-    int objectId = coneType.objectId();
-    {
-      std::unique_lock<std::mutex> lockCone(m_coneMutex);
-      m_lastTypeId = (m_lastTypeId<objectId)?(objectId):(m_lastTypeId);
-      auto type = coneType.type();
-      m_coneCollector(3,objectId) = type;
-    }
-  }
-
-  else if(a_container.dataType() == opendlv::sim::KinematicState::ID()){
-//    std::cout << "RECIEVED A KINEMATICSTATE!" << std::endl;
-    auto kinematicState = cluon::extractMessage<opendlv::sim::KinematicState>(std::move(a_container));
-    {
-      std::unique_lock<std::mutex> lockState(m_stateMutex);
-      m_vx = kinematicState.vx();
-      m_vy = kinematicState.vy();
-      m_yawRate = kinematicState.yawRate();
-    }
-  }
-
-} // End of nextContainer*/
-
-void BlackBox::initializeCollection(){
-  /*std::cout<< "directionFrames in initializeCollection2: "<<m_directionFrame.size()<<"\n";
-  std::cout<< "distanceFrames in initializeCollection2: "<<m_distanceFrame.size()<<"\n";
-  std::cout<< "typeFrames in initializeCollection2: "<<m_typeFrame.size()<<"\n";*/
-  std::map< double, float > directionFrame;
-  std::map< double, float > distanceFrame;
-  std::map< double, int > typeFrame;
-
-  if (m_directionFrame.size() == m_distanceFrame.size() && m_directionFrame.size() == m_typeFrame.size()) {
-    {
-      std::unique_lock<std::mutex> lockDirection(m_directionMutex);
-      std::unique_lock<std::mutex> lockDistance(m_distanceMutex);
-      std::unique_lock<std::mutex> lockType(m_typeMutex);
-      m_newFrame = true;
-      m_directionOK = false;
-      m_distanceOK = false;
-      directionFrame = m_directionFrame;
-      distanceFrame = m_distanceFrame;
-      typeFrame = m_typeFrame;
-      m_directionFrame = m_directionFrameBuffer;
-      m_distanceFrame = m_distanceFrameBuffer;
-      m_typeFrame = m_typeFrameBuffer;
-      m_directionFrameBuffer.clear(); // Clear buffer
-      m_distanceFrameBuffer.clear(); // Clear buffer
-      m_typeFrameBuffer.clear(); // Clear buffer
-      m_lastDirectionId = m_directionId; // Update last object id to ignore late messages
-      m_lastDistanceId = m_distanceId; // Update last object id to ignore late messages
-      m_lastTypeId = m_typeId; // Update last object id to ignore late messages
-      m_newDirectionId = true;
-      m_newDistanceId = true;
-      m_newTypeId = true;
-
-    }
-  }
-  else {
-    {
-      std::unique_lock<std::mutex> lockDirection(m_directionMutex);
-      std::unique_lock<std::mutex> lockDistance(m_distanceMutex);
-      std::unique_lock<std::mutex> lockType(m_typeMutex);
-      m_newFrame = true;
-      m_directionOK = false;
-      m_distanceOK = false;
-      m_directionFrame = m_directionFrameBuffer;
-      m_distanceFrame = m_distanceFrameBuffer;
-      m_typeFrame = m_typeFrameBuffer;
-      m_directionFrameBuffer.clear(); // Clear buffer
-      m_distanceFrameBuffer.clear(); // Clear buffer
-      m_typeFrameBuffer.clear(); // Clear buffer
-      m_lastDirectionId = m_directionId; // Update last object id to ignore late messages
-      m_lastDistanceId = m_distanceId; // Update last object id to ignore late messages
-      m_lastTypeId = m_typeId; // Update last object id to ignore late messages
-      m_newDirectionId = true;
-      m_newDistanceId = true;
-      m_newTypeId = true;
-      m_runOK = true;
-    }
-    std::cout<<"Return 0"<<std::endl;
-    return;
-  }
-  // Unpack
-  Eigen::MatrixXd extractedCones(3,directionFrame.size());
-  float dir;
-  float dis;
-  int tpe;
-  int I=0;
-
-  for (std::map<double, float >::iterator it = directionFrame.begin();it !=directionFrame.end();it++){
-    dir=it->second;
-    extractedCones(0,I) = static_cast<double>(dir);
-    I++;
-  }
-
-  I=0;
-  for (std::map<double, float >::iterator it = distanceFrame.begin();it !=distanceFrame.end();it++){
-    dis=it->second;
-    extractedCones(1,I) = static_cast<double>(dis);
-    I++;
-  }
-
-  I=0;
-  for (std::map<double, int >::iterator it = typeFrame.begin();it !=typeFrame.end();it++){
-    tpe=it->second;
-    extractedCones(2,I) = static_cast<double>(tpe);
-    I++;
-  }
-  //std::cout<<"extractedCones"<<extractedCones<<std::endl;
-  int nLeft = 0;
-  int nRight = 0;
-  int nSmall = 0;
-  int nBig = 0;
-
-    for (int i = 0; i < extractedCones.cols(); i++) {
-      int type = static_cast<int>(extractedCones(2,i));
-      if(type == 1){ nLeft++; }
-      else if(type == 2){ nRight++; }
-      else if(type == 3){ nSmall++; }
-      else if(type == 4){ nBig++; }
       else
       {
-        std::cout << "WARNING! Object " << i << " has invalid cone type: " << type << std::endl;
+        // Otherwise no orange cones are stored
+        detectedConesSmall.resize(0,2);
+        detectedConesBig.resize(0,2);
       } // End of else
-    } // End of for
-
-    //std::cout << "members: " << nLeft << " " << nRight << " " << nSmall << " " << nBig << std::endl;
-
-  //Initialize for next collection
-  if(extractedCones.cols() > 0){
-    //std::cout << "Extracted Cones " << std::endl;
-    //std::cout << extractedCones << std::endl;
-    BlackBox::sortIntoSideArrays(extractedCones, nLeft, nRight, nSmall, nBig);
-  } // End of if
-  m_runOK = true;
-
-} // End of initializeCollection
-
-
-void BlackBox::sortIntoSideArrays(Eigen::MatrixXd extractedCones, int nLeft, int nRight, int nSmall, int nBig)
-{
-  int coneNum = extractedCones.cols();
-  //Convert to cartesian
-  Eigen::MatrixXd cone;
-  Eigen::MatrixXd coneLocal = Eigen::MatrixXd::Zero(2,coneNum);
-
-  for(int p = 0; p < coneNum; p++)
-  {
-    cone = BlackBox::Spherical2Cartesian(extractedCones(0,p), 0.0, extractedCones(1,p));
-    coneLocal.col(p) = cone;
-  } // End of for
-//std::cout << "ConeLocal: " << coneLocal.transpose() << std::endl;
-
-  Eigen::MatrixXd coneLeft = Eigen::MatrixXd::Zero(2,nLeft);
-  Eigen::MatrixXd coneRight = Eigen::MatrixXd::Zero(2,nRight);
-  Eigen::MatrixXd coneSmall = Eigen::MatrixXd::Zero(2,nSmall);
-  Eigen::MatrixXd coneBig = Eigen::MatrixXd::Zero(2,nBig);
-  int a = 0;
-  int b = 0;
-  int c = 0;
-  int d = 0;
-  int type;
-
-  for(int k = 0; k < coneNum; k++){
-    type = static_cast<int>(extractedCones(2,k));
-    if(type == 1)
-    {
-      coneLeft.col(a) = coneLocal.col(k);
-      a++;
-    }
-    else if(type == 2)
-    {
-      coneRight.col(b) = coneLocal.col(k);
-      b++;
-    }
-    else if(type == 3)
-    {
-      coneSmall.col(c) = coneLocal.col(k);
-      c++;
-    }
-    else if(type == 4)
-    {
-      coneBig.col(d) = coneLocal.col(k);
-      d++;
-    } // End of else
-  } // End of for
-
-  Eigen::MatrixXf coneLeft_f = coneLeft.cast <float> ();
-  Eigen::MatrixXf coneRight_f = coneRight.cast <float> ();
-  Eigen::ArrayXXf sideLeft = coneLeft_f.transpose().array();
-  Eigen::ArrayXXf sideRight = coneRight_f.transpose().array();
-
-  BlackBox::generateSurfaces(sideLeft, sideRight);
-  //std::cout<<"exit sortIntoSideArrays"<<std::endl;
-} // End of sortIntoSideArrays
-
-
-void BlackBox::generateSurfaces(Eigen::ArrayXXf sideLeft, Eigen::ArrayXXf sideRight){
-/*std::cout << "sideLeft: " << sideLeft.rows() << std::endl;
-std::cout << "sideRight: " << sideRight.rows() << std::endl;*/
-  if(sideLeft.rows()==5 && sideRight.rows()==5){
-
-    Eigen::ArrayXXd leftSide = sideLeft.cast <double> ();
-    Eigen::ArrayXXd rightSide = sideRight.cast <double> ();
-
-    double in[24];  //Input loading array
-    double out1;
-    double out2;
-    std::vector<NEAT::NNode*>::iterator out_iter;
-
-    in[0] = 1; // Bias
-    {
-      std::unique_lock<std::mutex> lockState(m_stateMutex);
-      in[1] = static_cast<double>(m_vx);
-      in[2] = static_cast<double>(m_vy);
-      in[3] = static_cast<double>(m_yawRate);
-    }
-    in[4] = leftSide(0,0);
-    in[5] = leftSide(0,1);
-    in[6] = leftSide(1,0);
-    in[7] = leftSide(1,1);
-    in[8] = leftSide(2,0);
-    in[9] = leftSide(2,1);
-    in[10] = leftSide(3,0);
-    in[11] = leftSide(3,1);
-    in[12] = leftSide(4,0);
-    in[13] = leftSide(4,1);
-    in[14] = rightSide(0,0);
-    in[15] = rightSide(0,1);
-    in[16] = rightSide(1,0);
-    in[17] = rightSide(1,1);
-    in[18] = rightSide(2,0);
-    in[19] = rightSide(2,1);
-    in[20] = rightSide(3,0);
-    in[21] = rightSide(3,1);
-    in[22] = rightSide(4,0);
-    in[23] = rightSide(4,1);
-
-    m_net->load_sensors(in);
-
-    //Activate the net
-    //If it loops, exit returning only fitness of 1 step
-    if(m_net->activate())
-    {
-      //std::cout << "NET ACTIVATED" << std::endl;
-      out_iter=m_net->outputs.begin();
-      out1=(*out_iter)->activation;
-      ++out_iter;
-      out2=(*out_iter)->activation;
-    }
-    //std::cout << "OUTS: " << out1*2-1 << " and " << out2*2-1 << std::endl;
-
-    float maxSteer = m_maxSteering;
-    float maxAcc = m_maxAcceleration;
-    float maxDec = m_maxDeceleration;
-
-    // Send messages
-    cluon::OD4Session od4{m_cid,[](auto){}};
-
-    float steer = maxSteer*3.14159265f/180.0f*(out1*2-1);
-    opendlv::proxy::GroundSteeringRequest steerRequest;
-    steerRequest.groundSteering(steer);
-    od4.send(steerRequest);
-    //std::cout << "Sent steeringRequest: " << steer << std::endl;
-
-    //Send for Ui TODO: Remove
-    opendlv::logic::action::AimPoint o4;
-    o4.azimuthAngle(steer);
-    o4.distance(2.0f);
-    od4.send(o4);
-
-    float acc = (out2*2-1);
-    if(acc >= 0)
-    {
-      acc = maxAcc*acc;
-      opendlv::proxy::GroundAccelerationRequest accRequest;
-      accRequest.groundAcceleration(acc);
-      od4.send(accRequest);
-      //std::cout << "Sent accelerationRequest: " << acc << std::endl;
     }
     else
     {
-      acc = -maxDec*acc;
-      opendlv::proxy::GroundDecelerationRequest decRequest;
-      decRequest.groundDeceleration(acc);
-      od4.send(decRequest);
-      //std::cout << "Sent decelerationRequest: " << acc << std::endl;
+      // If slam detection is deactivated the cones will be detected with normal vision
+      detectedConesLeft = DetectCone::simConeDetectorBox(m_leftCones, locationCopy, headingCopy, m_detectRange, m_detectWidth);
+      detectedConesRight = DetectCone::simConeDetectorBox(m_rightCones, locationCopy, headingCopy, m_detectRange, m_detectWidth);
+      detectedConesSmall = DetectCone::simConeDetectorBox(m_smallCones, locationCopy, headingCopy, m_detectRange, m_detectWidth);
+      detectedConesBig = DetectCone::simConeDetectorBox(m_bigCones, locationCopy, headingCopy, m_detectRange, m_detectWidth);
+    } // End of else
+
+    // This is where the messages are sent
+    Eigen::MatrixXd detectedConesLeftMat = ((detectedConesLeft.matrix()).transpose()).cast <double> ();
+    Eigen::MatrixXd detectedConesRightMat = ((detectedConesRight.matrix()).transpose()).cast <double> ();
+    Eigen::MatrixXd detectedConesSmallMat = ((detectedConesSmall.matrix()).transpose()).cast <double> ();
+    Eigen::MatrixXd detectedConesBigMat = ((detectedConesBig.matrix()).transpose()).cast <double> ();
+
+    std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+    cluon::data::TimeStamp sampleTime = cluon::time::convert(tp);
+    opendlv::logic::perception::ObjectProperty cones;
+    std::string property = std::to_string(detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols());
+    cones.property(property);
+    cones.objectId(m_sendId);
+    od4.send(cones, sampleTime, m_senderStamp);
+
+    int type = 1;
+    auto startLeft = std::chrono::system_clock::now();
+    sendMatchedContainer(detectedConesLeftMat, type, m_sendId, od4);
+    type = 2;
+    sendMatchedContainer(detectedConesRightMat, type, m_sendId, od4);
+    type = 3;
+    sendMatchedContainer(detectedConesSmallMat, type, m_sendId, od4);
+    type = 4;
+    sendMatchedContainer(detectedConesBigMat, type, m_sendId, od4);
+    //std::cout<<"Sending with ID: "<<m_sendId<<"\n";
+    int rndmId = rand();
+    while (m_sendId == rndmId){rndmId = rand();}
+    m_sendId = rndmId;
+    auto finishRight = std::chrono::system_clock::now();
+    auto timeSend = std::chrono::duration_cast<std::chrono::microseconds>(finishRight - startLeft);
+    //std::cout << "sendTime:" << timeSend.count() << std::endl;
+} // End of body
+
+
+void DetectCone::setUp()
+{
+  // Starting position and heading are set in the configuration
+  m_location.resize(1,2);
+  m_location << m_startX,m_startY;
+  m_heading = m_startHeading;
+
+  DetectCone::readMap(m_filename);
+} // End of setUp
+
+
+void DetectCone::tearDown()
+{
+}
+
+void DetectCone::readMap(std::string filename)
+{
+  int leftCounter = 0;
+  int rightCounter = 0;
+  int smallCounter = 0;
+  int bigCounter = 0;
+
+  std::string line, word;
+  std::string const HOME = "/opt/opendlv.data/";
+  std::string infile = HOME + filename;
+
+  std::ifstream file(infile, std::ifstream::in);
+
+  if(file.is_open())
+  {
+    while(getline(file,line))
+    {
+      std::stringstream strstr(line);
+
+      getline(strstr,word,',');
+      getline(strstr,word,',');
+      getline(strstr,word,',');
+
+      if(word.compare("1") == 0){leftCounter = leftCounter+1;}
+      else if(word.compare("2") == 0){rightCounter = rightCounter+1;}
+      else if(word.compare("3") == 0){smallCounter = smallCounter+1;}
+      else if(word.compare("4") == 0){bigCounter = bigCounter+1;}
+      else{std::cout << "ERROR in DetectCone::simDetectCone while counting types. Not a valid cone type." << std::endl;}
+    } // End of while
+
+    file.close();
+  } // End of if
+
+  Eigen::ArrayXXf tmpLeftCones(leftCounter,2);
+  Eigen::ArrayXXf tmpRightCones(rightCounter,2);
+  Eigen::ArrayXXf tmpSmallCones(smallCounter,2);
+  Eigen::ArrayXXf tmpBigCones(bigCounter,2);
+  float x, y;
+  leftCounter = 0;
+  rightCounter = 0;
+  smallCounter = 0;
+  bigCounter = 0;
+  std::ifstream myFile(infile, std::ifstream::in);
+
+  if(myFile.is_open())
+  {
+    while(getline(myFile,line))
+    {
+      std::stringstream strstr(line);
+
+      getline(strstr,word,',');
+      x = std::stof(word);
+      getline(strstr,word,',');
+      y = std::stof(word);
+
+      getline(strstr,word,',');
+
+      if(word.compare("1") == 0)
+      {
+        tmpLeftCones(leftCounter,0) = x;
+        tmpLeftCones(leftCounter,1) = y;
+        leftCounter = leftCounter+1;
+      }
+      else if(word.compare("2") == 0)
+      {
+        tmpRightCones(rightCounter,0) = x;
+        tmpRightCones(rightCounter,1) = y;
+        rightCounter = rightCounter+1;
+      }
+      else if(word.compare("3") == 0)
+      {
+        tmpSmallCones(smallCounter,0) = x;
+        tmpSmallCones(smallCounter,1) = y;
+        smallCounter = smallCounter+1;
+      }
+      else if(word.compare("4") == 0)
+      {
+        tmpBigCones(bigCounter,0) = x;
+        tmpBigCones(bigCounter,1) = y;
+        bigCounter = bigCounter+1;
+      }
+      else{std::cout << "ERROR in DetectCone::simDetectCone while storing cones. Not a valid cone type." << std::endl;}
+    } // End of while
+
+    myFile.close();
+  } // End of if
+
+  m_leftCones = tmpLeftCones;
+  m_rightCones = tmpRightCones;
+  m_smallCones = tmpSmallCones;
+  m_bigCones = tmpBigCones;
+} // End of readMap
+
+
+Eigen::ArrayXXf DetectCone::simConeDetectorBox(Eigen::ArrayXXf globalMap, Eigen::ArrayXXf location, float heading, float detectRange, float detectWidth)
+{
+  // Input: Positions of cones and vehicle, heading angle, detection ranges forward and to the side
+  // Output: Local coordinates of the cones within the specified area
+
+  int nCones = globalMap.rows();
+
+  Eigen::MatrixXf rotationMatrix(2,2);
+  rotationMatrix << std::cos(-heading),-std::sin(-heading),
+                    std::sin(-heading),std::cos(-heading);
+
+  Eigen::ArrayXXf tmpLocation(nCones,2);
+  (tmpLocation.col(0)).fill(location(0));
+  (tmpLocation.col(1)).fill(location(1));
+
+  Eigen::ArrayXXf localMap = ((rotationMatrix*(((globalMap-tmpLocation).matrix()).transpose())).transpose()).array();
+
+  Eigen::ArrayXXf detectedCones(nCones,2);
+  bool inLongitudinalInterval, inLateralInterval;
+  int nFound = 0;
+  for(int i = 0; i < nCones; i = i+1)
+  {
+    inLongitudinalInterval = localMap(i,0) < detectRange && localMap(i,0) >= 0;
+    inLateralInterval = localMap(i,1) >= -detectWidth/2 && localMap(i,1) <= detectWidth/2;
+
+    if(inLongitudinalInterval && inLateralInterval)
+    {
+      detectedCones.row(nFound) = localMap.row(i);
+      nFound = nFound+1;
+    } // End of if
+  } // End of for
+
+Eigen::ArrayXXf detectedConesFinal = detectedCones.topRows(nFound);
+
+return detectedConesFinal;
+} // End of simConeDetectorBox
+
+
+Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen::ArrayXXf location, float heading, int nConesInFakeSlam)
+{
+  // Input: Positions of cones and vehicle, heading angle, detection ranges forward and to the side
+  // Output: Local coordinates of the upcoming cones
+
+  int nCones = globalMap.rows();
+  Eigen::MatrixXf rotationMatrix(2,2);
+  rotationMatrix << std::cos(-heading),-std::sin(-heading),
+                    std::sin(-heading),std::cos(-heading);
+  Eigen::ArrayXXf tmpLocation(nCones,2);
+  (tmpLocation.col(0)).fill(location(0));
+  (tmpLocation.col(1)).fill(location(1));
+
+  // Convert to local coordinates
+  Eigen::ArrayXXf localMap = ((rotationMatrix*(((globalMap-tmpLocation).matrix()).transpose())).transpose()).array();
+
+  float shortestDist = std::numeric_limits<float>::infinity();
+  float tmpDist;
+  int closestConeIndex = -1;
+
+  // Find the closest cone. It will be the first in the returned sequence.
+  for(int i = 0; i < nCones; i = i+1)
+  {
+    tmpDist = ((localMap.row(i)).matrix()).norm();
+    if(tmpDist < shortestDist && tmpDist > 0)
+    {
+      shortestDist = tmpDist;
+      closestConeIndex = i;
+    } // End of if
+  } // End of for
+
+  if(closestConeIndex != -1)
+  {
+    Eigen::VectorXi indices;
+
+    // If more than the existing cones are requested, send all existing cones
+    if(nConesInFakeSlam >= nCones)
+    {
+      // If the first cone is closest, no wrap-around is needed
+      if(closestConeIndex == 0)
+      {
+        indices = Eigen::VectorXi::LinSpaced(nCones,0,nCones-1);
+      }
+      else
+      {
+        Eigen::VectorXi firstPart = Eigen::VectorXi::LinSpaced(nCones-closestConeIndex,closestConeIndex,nCones-1);
+        Eigen::VectorXi secondPart = Eigen::VectorXi::LinSpaced(closestConeIndex,0,closestConeIndex-1);
+        indices.resize(firstPart.size()+secondPart.size());
+        indices.topRows(firstPart.size()) = firstPart;
+        indices.bottomRows(secondPart.size()) = secondPart;
+      } // End of else
     }
+    // If the sequence should contain both the end and beginning of the track, do wrap-around
+    else if(closestConeIndex + nConesInFakeSlam > nCones)
+    {
+      Eigen::VectorXi firstPart = Eigen::VectorXi::LinSpaced(nCones-closestConeIndex,closestConeIndex,nCones-1);
+      Eigen::VectorXi secondPart = Eigen::VectorXi::LinSpaced(nConesInFakeSlam-(nCones-closestConeIndex),0,nConesInFakeSlam-(nCones-closestConeIndex)-1);
+      indices.resize(firstPart.size()+secondPart.size());
+      indices.topRows(firstPart.size()) = firstPart;
+      indices.bottomRows(secondPart.size()) =secondPart;
+    }
+    // Otherwise simply take the closest and the following cones
+    else
+    {
+      indices = Eigen::VectorXi::LinSpaced(nConesInFakeSlam,closestConeIndex,closestConeIndex+nConesInFakeSlam-1);
+    }
+
+    // Sort the cones according to the order set above
+    Eigen::ArrayXXf detectedCones(indices.size(),2);
+    for(int i = 0; i < indices.size(); i = i+1)
+    {
+      detectedCones.row(i) = localMap.row(indices(i));
+    }
+
+    // If the first cones of the track is visible, the orange cones are set as visible as well
+    if(indices.minCoeff() == 0)
+    {
+      m_orangeVisibleInSlam = true;
+    }
+
+    return detectedCones;
+
   }
+  // If no closest cone was found, the returned array is empty
   else
   {
-  std::cout << "Not enough cones to run network" << std::endl;
-  }
-    //std::cout<<"exit generateSurfaces"<<std::endl;
-} // End of generateSurfaces
+    std::cout << "Error: No cone found in fake slam detection" << std::endl;
+    Eigen::ArrayXXf detectedCones(0,2);
+
+    return detectedCones;
+  } // End of else
+} // End of simConeDetectorSlam
 
 
-// copy from perception-detectcone
-Eigen::MatrixXd BlackBox::Spherical2Cartesian(double azimuth, double zenimuth, double distance)
+void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int startID, cluon::OD4Session &od4)
 {
-  double xData = distance * cos(zenimuth * static_cast<double>(DEG2RAD))*sin(azimuth * static_cast<double>(DEG2RAD));
-  double yData = distance * cos(zenimuth * static_cast<double>(DEG2RAD))*cos(azimuth * static_cast<double>(DEG2RAD));
-  Eigen::MatrixXd recievedPoint = Eigen::MatrixXd::Zero(2,1);
-  recievedPoint << xData,
-                   yData;
-  return recievedPoint;
-} // End of Spherical2Cartesian
+//std::cout << "New location: " << m_location << " and heading: " << m_heading << std::endl;
+//std::cout << "Sending " << cones.cols() << " of type " << type << std::endl;
+  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+  cluon::data::TimeStamp sampleTime = cluon::time::convert(tp);
+  opendlv::logic::sensation::Point conePoint;
+  for(int n = 0; n < cones.cols(); n++){
+
+    Cartesian2Spherical(cones(0,n), cones(1,n), 0, conePoint);
+
+    opendlv::logic::perception::ObjectDirection coneDirection;
+    coneDirection.objectId(startID);
+    coneDirection.azimuthAngle(conePoint.azimuthAngle());
+    coneDirection.zenithAngle(conePoint.zenithAngle());
+    od4.send(coneDirection, sampleTime, m_senderStamp);
+
+    opendlv::logic::perception::ObjectDistance coneDistance;
+    coneDistance.objectId(startID);
+    coneDistance.distance(conePoint.distance());
+    od4.send(coneDistance, sampleTime, m_senderStamp);
+
+    opendlv::logic::perception::ObjectType coneType;
+    coneType.objectId(startID);
+    coneType.type(type);
+    od4.send(coneType, sampleTime, m_senderStamp);
+  } // End of for
+} // End of sendMatchedContainer
+
+
+void DetectCone::Cartesian2Spherical(double x, double y, double z, opendlv::logic::sensation::Point &pointInSpherical)
+{
+  double distance = sqrt(x*x+y*y+z*z);
+  double azimuthAngle = atan2(x,y)*static_cast<double>(RAD2DEG);
+  double zenithAngle = atan2(z,sqrt(x*x+y*y))*static_cast<double>(RAD2DEG);
+  pointInSpherical.distance(static_cast<float>(distance));
+  pointInSpherical.azimuthAngle(static_cast<float>(azimuthAngle));
+  pointInSpherical.zenithAngle(static_cast<float>(zenithAngle));
+} // End of Cartesian2Spherical
