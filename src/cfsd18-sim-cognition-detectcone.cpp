@@ -31,11 +31,11 @@ int32_t main(int32_t argc, char **argv) {
   std::map<std::string, std::string> commandlineArguments = cluon::getCommandlineArguments(argc, argv);
   if (commandlineArguments.size()<=0) {
     std::cerr << argv[0] << " is a module simulating a perception system in the CFSD18 project." << std::endl;
-    std::cerr << "Usage:   " << argv[0] << " --cid=<OpenDaVINCI session> [--id=<Identifier in case of simulated units>] [--verbose] [Module specific parameters....]" << std::endl;
-    std::cerr << "Example: " << argv[0] << "--cid=111 --id=120 --maxSteering=25.0 --maxAcceleration=5.0 --maxDeceleration=5.0" <<  std::endl;
+    std::cerr << "Usage:   " << argv[0] << " --cid=<OpenDaVINCI session> [--id=<Identifier in case of simulated units>] [--verbose] [--freq] [Module specific parameters....]" << std::endl;
+    std::cerr << "Example: " << argv[0] << "--cid=111 --id=231 --freq=20 --startX=0 --startY=0 --startHeading=3.14 [more...]" <<  std::endl;
     retCode = 1;
   } else {
-    //uint32_t const ID{(commandlineArguments["id"].size() != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["id"])) : (0)};
+
     const float freq{(commandlineArguments["freq"].size() != 0) ? static_cast<float>(std::stof(commandlineArguments["freq"])) : (50.0f)};
 
     // Interface to a running OpenDaVINCI session.

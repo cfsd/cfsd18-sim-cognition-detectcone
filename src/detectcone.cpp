@@ -27,7 +27,7 @@
 
 DetectCone::DetectCone(std::map<std::string, std::string> commandlineArguments, cluon::OD4Session &od4) :
 m_od4(od4)
-, m_senderStamp{(commandlineArguments["senderStamp"].size() != 0) ? (static_cast<int>(std::stoi(commandlineArguments["senderStamp"]))) : (231)}
+, m_senderStamp{(commandlineArguments["id"].size() != 0) ? (static_cast<int>(std::stoi(commandlineArguments["id"]))) : (231)}
 , m_detectRange{(commandlineArguments["detectRange"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["detectRange"]))) : (11.5f)}
 , m_detectWidth{(commandlineArguments["detectWidth"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["detectWidth"]))) : (4.0f)}
 , m_fakeSlamActivated{(commandlineArguments["fakeSlamActivated"].size() != 0) ? (std::stoi(commandlineArguments["fakeSlamActivated"])==1) : (true)}

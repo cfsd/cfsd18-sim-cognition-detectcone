@@ -20,49 +20,49 @@ version: '2'
 
 services:
     # microservice for ...
-    sim-global:
+    cfsd18-sim-globalposition:
         image: chalmersrevere/opendlv-sim-global-amd64:v0.0.5
         network_mode: "host"
         command: "/usr/bin/opendlv-sim-global --cid=${CID} --freq=50 \
         --frame-id=232 --x=${X} --y=${Y} --yaw=${YAW}"
 
     # microservice for ...
-    logic-cfsd18-perception-detectconelane:
+    cfsd18-cognition-detectconelane:
         image: detectconelane:v0.1
         network_mode: "host"
-        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --senderStamp=211 \
+        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 \
         --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
         --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5 --receiveTimeLimit=0.001"
 
     # microservice for ...
-    sim-cfsd18-perception-detectcone:
+    cfsd18-sim-cognition-detectcone:
         image: detectcone:v0.1
         network_mode: "host"
         volumes:
         - .:/opt/opendlv.data
-        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --senderStamp=231 --freq=20 \
+        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=20 \
         --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=5 --startX=${X} --startY=${Y} --startHeading=${YAW} \
         --mapFilename=${MAP}"
 
     # microservice for ...
-    logic-cfsd18-cognition-track:
+    cfsd18-cognition-track:
         image: track:v0.1
         network_mode: "host"
-        command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --senderStamp=221 --surfaceStamp=211 --speedStamp=232 \
+        command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
         --receiveTimeLimit=0.001 --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
         --axSpeedProfile=-1 --velocityLimit=15 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=15 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
-    sim-lynx-vehicle:
+    cfsd18-sim-cognition-vehiclemodel:
         image: vehiclemodel:v0.1
         network_mode: "host"
-        command: "/usr/bin/cfsd18-sim-cognition-vehiclemodel --cid=${CID} --verbose=0 --senderStamp=232 --freq=50 \
+        command: "/usr/bin/cfsd18-sim-cognition-vehiclemodel --cid=${CID} --verbose=0 --id=232 --freq=50 \
         --frontToCog=${FTC} --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
         --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
 
-    ui-default:
-        image: cognition-track:19
+    cfsd18-sim-visualization:
+        image: cognition-track:19x
         network_mode: "host"
         command: "--cid=${CID}"
