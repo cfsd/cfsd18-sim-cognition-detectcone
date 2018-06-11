@@ -21,15 +21,16 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+#include <chrono>
 
 #include "detectcone.hpp"
 
-DetectCone::DetectCone(std::map<std::string, std::string> commandlineArguments) :
- m_cid{static_cast<uint16_t>(std::stoi(commandlineArguments["cid"]))}
-, m_senderStamp{(commandlineArguments["senderStamp"].size() != 0) ? (static_cast<uint32_t>(std::stoi(commandlineArguments["senderStamp"]))) : (201)}
+DetectCone::DetectCone(std::map<std::string, std::string> commandlineArguments, cluon::OD4Session &od4) :
+m_od4(od4)
+, m_senderStamp{(commandlineArguments["senderStamp"].size() != 0) ? (static_cast<int>(std::stoi(commandlineArguments["senderStamp"]))) : (231)}
 , m_detectRange{(commandlineArguments["detectRange"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["detectRange"]))) : (11.5f)}
 , m_detectWidth{(commandlineArguments["detectWidth"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["detectWidth"]))) : (4.0f)}
-, m_fakeSlamActivated{(commandlineArguments["fakeSlamActivated"].size() != 0) ? (static_cast<bool>(std::stoi(commandlineArguments["fakeSlamActivated"]))) : (1)}
+, m_fakeSlamActivated{(commandlineArguments["fakeSlamActivated"].size() != 0) ? (std::stoi(commandlineArguments["fakeSlamActivated"])==1) : (true)}
 , m_nConesFakeSlam{(commandlineArguments["nConesFakeSlam"].size() != 0) ? (static_cast<int>(std::stoi(commandlineArguments["nConesFakeSlam"]))) : (5)}
 , m_startX{(commandlineArguments["startX"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["startX"]))) : (0.0f)}
 , m_startY{(commandlineArguments["startY"].size() != 0) ? (static_cast<float>(std::stof(commandlineArguments["startY"]))) : (0.0f)}
@@ -44,11 +45,13 @@ DetectCone::DetectCone(std::map<std::string, std::string> commandlineArguments) 
 , m_orangeVisibleInSlam()
 , m_locationMutex()
 , m_sendId()
-, m_kinematicStateMutex()
-, m_kinematicState()
 {
   m_sendId = rand();
-  m_kinematicState.resize(6);
+  setUp();
+  std::cout<<"DetectCone set up with "<<commandlineArguments.size()<<" commandlineArguments: "<<std::endl;
+  for (std::map<std::string, std::string >::iterator it = commandlineArguments.begin();it !=commandlineArguments.end();it++){
+    std::cout<<it->first<<" "<<it->second<<std::endl;
+  }
 }
 
 DetectCone::~DetectCone()
@@ -63,6 +66,7 @@ void DetectCone::nextContainer(cluon::data::Envelope &a_container)
     float x = frame.x();
     float y = frame.y();
     float yaw = frame.yaw();
+    //std::cout<<"DetectCone received: " <<"x: "<<x<<" y: "<<y<<" yaw: "<<yaw<<std::endl;
     {
       std::unique_lock<std::mutex> lockLocation(m_locationMutex);
       m_location << x,y;
@@ -70,30 +74,10 @@ void DetectCone::nextContainer(cluon::data::Envelope &a_container)
     }
   }
 
-  if (a_container.dataType() == opendlv::logic::sensation::Equilibrioception::ID())
-  {
-    auto kinState = cluon::extractMessage<opendlv::logic::sensation::Equilibrioception>(std::move(a_container));
-    float vx = kinState.vx();
-    float vy = kinState.vy();
-    float vxDot = kinState.vz();
-    float yawRate = kinState.yawRate();
-    float vyDot = kinState.rollRate();
-    float yawRateDot = kinState.pitchRate();
-    {
-      std::unique_lock<std::mutex> lockKin(m_kinematicStateMutex);
-      m_kinematicState << vx,
-                          vy,
-                          yawRate,
-                          vxDot,
-                          vyDot,
-                          yawRateDot;
-    }
-  }
-
 }
 
-void DetectCone::body(cluon::OD4Session &od4)
-{
+void DetectCone::body()
+{  //std::cout<<"DetectCone body: " <<"x: "<<m_location(0)<<" y: "<<m_location(1)<<" yaw: "<<m_heading<<std::endl;
     Eigen::ArrayXXf locationCopy;
     float headingCopy;
     {
@@ -154,17 +138,18 @@ void DetectCone::body(cluon::OD4Session &od4)
     std::string property = std::to_string(detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols());
     cones.property(property);
     cones.objectId(m_sendId);
-    od4.send(cones, sampleTime, m_senderStamp);
+    m_od4.send(cones, sampleTime, m_senderStamp);
+    //std::cout<<"DetectCone sends: " <<"number of cones: "<<property<<" frame ID: "<<m_sendId<<" sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" senderStamp: "<<m_senderStamp<<std::endl;
 
     int type = 1;
     auto startLeft = std::chrono::system_clock::now();
-    sendMatchedContainer(detectedConesLeftMat, type, m_sendId, od4);
+    sendMatchedContainer(detectedConesLeftMat, type, m_sendId);
     type = 2;
-    sendMatchedContainer(detectedConesRightMat, type, m_sendId, od4);
+    sendMatchedContainer(detectedConesRightMat, type, m_sendId);
     type = 3;
-    sendMatchedContainer(detectedConesSmallMat, type, m_sendId, od4);
+    sendMatchedContainer(detectedConesSmallMat, type, m_sendId);
     type = 4;
-    sendMatchedContainer(detectedConesBigMat, type, m_sendId, od4);
+    sendMatchedContainer(detectedConesBigMat, type, m_sendId);
     //std::cout<<"Sending with ID: "<<m_sendId<<"\n";
     int rndmId = rand();
     while (m_sendId == rndmId){rndmId = rand();}
@@ -181,7 +166,6 @@ void DetectCone::setUp()
   m_location.resize(1,2);
   m_location << m_startX,m_startY;
   m_heading = m_startHeading;
-
   DetectCone::readMap(m_filename);
 } // End of setUp
 
@@ -416,32 +400,34 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
 } // End of simConeDetectorSlam
 
 
-void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int startID, cluon::OD4Session &od4)
+void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int startID)
 {
 //std::cout << "New location: " << m_location << " and heading: " << m_heading << std::endl;
 //std::cout << "Sending " << cones.cols() << " of type " << type << std::endl;
-  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
-  cluon::data::TimeStamp sampleTime = cluon::time::convert(tp);
+  std::chrono::system_clock::time_point tp;
+  cluon::data::TimeStamp sampleTime;
   opendlv::logic::sensation::Point conePoint;
   for(int n = 0; n < cones.cols(); n++){
 
     Cartesian2Spherical(cones(0,n), cones(1,n), 0, conePoint);
-
+    tp = std::chrono::system_clock::now();
+    sampleTime = cluon::time::convert(tp);
     opendlv::logic::perception::ObjectDirection coneDirection;
     coneDirection.objectId(startID);
     coneDirection.azimuthAngle(conePoint.azimuthAngle());
     coneDirection.zenithAngle(conePoint.zenithAngle());
-    od4.send(coneDirection, sampleTime, m_senderStamp);
+    m_od4.send(coneDirection, sampleTime, m_senderStamp);
 
     opendlv::logic::perception::ObjectDistance coneDistance;
     coneDistance.objectId(startID);
     coneDistance.distance(conePoint.distance());
-    od4.send(coneDistance, sampleTime, m_senderStamp);
+    m_od4.send(coneDistance, sampleTime, m_senderStamp);
 
     opendlv::logic::perception::ObjectType coneType;
     coneType.objectId(startID);
     coneType.type(type);
-    od4.send(coneType, sampleTime, m_senderStamp);
+    m_od4.send(coneType, sampleTime, m_senderStamp);
+    //std::cout<<"DetectCone sends: " <<"direction: "<<conePoint.azimuthAngle()<<" distance: "<<conePoint.distance()<<" type: "<<type<< " sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" frame ID: "<<startID<< " senderStamp: "<<m_senderStamp<<std::endl;
   } // End of for
 } // End of sendMatchedContainer
 

@@ -29,28 +29,34 @@
 int32_t main(int32_t argc, char **argv) {
   int32_t retCode{0};
   std::map<std::string, std::string> commandlineArguments = cluon::getCommandlineArguments(argc, argv);
-  if (commandlineArguments.size()<0) {
+  if (commandlineArguments.size()<=0) {
     std::cerr << argv[0] << " is a module simulating a perception system in the CFSD18 project." << std::endl;
     std::cerr << "Usage:   " << argv[0] << " --cid=<OpenDaVINCI session> [--id=<Identifier in case of simulated units>] [--verbose] [Module specific parameters....]" << std::endl;
     std::cerr << "Example: " << argv[0] << "--cid=111 --id=120 --maxSteering=25.0 --maxAcceleration=5.0 --maxDeceleration=5.0" <<  std::endl;
     retCode = 1;
   } else {
-    uint32_t const ID{(commandlineArguments["id"].size() != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["id"])) : 0};
-    bool const VERBOSE{commandlineArguments.count("verbose") != 0};
-    (void)VERBOSE;
-    const float FREQ{std::stof(commandlineArguments["freq"])};
+    //uint32_t const ID{(commandlineArguments["id"].size() != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["id"])) : (0)};
+    const float freq{(commandlineArguments["freq"].size() != 0) ? static_cast<float>(std::stof(commandlineArguments["freq"])) : (50.0f)};
 
     // Interface to a running OpenDaVINCI session.
-    DetectCone detectcone(commandlineArguments);
     cluon::OD4Session od4{static_cast<uint16_t>(std::stoi(commandlineArguments["cid"]))};
+    DetectCone detectcone(commandlineArguments, od4);
 
-    auto atFrequency{[&od4, &detectcone]() -> bool
+    auto bodyEnvelope{[&detecter = detectcone]() -> bool
     {
-        detectcone.body(od4);
-        return true;
-    }};
+      detecter.body();
+      return true;
+    }
+    };
+    auto dataEnvelope{[&detecter = detectcone](cluon::data::Envelope &&envelope)
+      {
+          detecter.nextContainer(envelope);
+      }
+    };
 
-    od4.timeTrigger(FREQ, atFrequency);
+    od4.dataTrigger(opendlv::sim::Frame::ID(),dataEnvelope);
+    od4.timeTrigger(freq, bodyEnvelope);
+
   }
   return retCode;
 }

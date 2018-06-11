@@ -1,0 +1,68 @@
+# docker-compose.yml - Composition of micro-services to run OpenDLV software.
+# Copyright (C) 2016 Christian Berger
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version  of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+# Date: 2016-10-13
+
+version: '2'
+
+services:
+    # microservice for ...
+    sim-global:
+        image: chalmersrevere/opendlv-sim-global-amd64:v0.0.5
+        network_mode: "host"
+        command: "/usr/bin/opendlv-sim-global --cid=${CID} --freq=50 \
+        --frame-id=232 --x=${X} --y=${Y} --yaw=${YAW}"
+
+    # microservice for ...
+    logic-cfsd18-perception-detectconelane:
+        image: detectconelane:v0.1
+        network_mode: "host"
+        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --senderStamp=211 \
+        --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
+        --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5 --receiveTimeLimit=0.001"
+
+    # microservice for ...
+    sim-cfsd18-perception-detectcone:
+        image: detectcone:v0.1
+        network_mode: "host"
+        volumes:
+        - .:/opt/opendlv.data
+        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --senderStamp=231 --freq=20 \
+        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=5 --startX=${X} --startY=${Y} --startHeading=${YAW} \
+        --mapFilename=${MAP}"
+
+    # microservice for ...
+    logic-cfsd18-cognition-track:
+        image: track:v0.1
+        network_mode: "host"
+        command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --senderStamp=221 --surfaceStamp=211 --speedStamp=232 \
+        --receiveTimeLimit=0.001 --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
+        --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
+        --axSpeedProfile=-1 --velocityLimit=15 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
+        --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=15 \
+        --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
+
+    sim-lynx-vehicle:
+        image: vehiclemodel:v0.1
+        network_mode: "host"
+        command: "/usr/bin/cfsd18-sim-cognition-vehiclemodel --cid=${CID} --verbose=0 --senderStamp=232 --freq=50 \
+        --frontToCog=${FTC} --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
+        --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
+
+    ui-default:
+        image: cognition-track:19
+        network_mode: "host"
+        command: "--cid=${CID}"

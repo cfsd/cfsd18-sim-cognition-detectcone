@@ -28,15 +28,16 @@
 
 class DetectCone {
  public:
-  DetectCone(std::map<std::string, std::string> commandlineArguments);
+  DetectCone(std::map<std::string, std::string> commandlineArguments, cluon::OD4Session &od4);
   DetectCone(DetectCone const &) = delete;
   DetectCone &operator=(DetectCone const &) = delete;
   ~DetectCone();
   void nextContainer(cluon::data::Envelope &);
+  void body();
 
  private:
-  uint16_t m_cid;
-  uint32_t m_senderStamp;
+  cluon::OD4Session &m_od4;
+  int m_senderStamp;
   float m_detectRange;
   float m_detectWidth;
   bool m_fakeSlamActivated;
@@ -54,17 +55,14 @@ class DetectCone {
   bool m_orangeVisibleInSlam;
   std::mutex m_locationMutex;
   int m_sendId;
-  std::mutex m_kinematicStateMutex;
-  Eigen::VectorXf m_kinematicState;
   const double RAD2DEG = 57.295779513082325; // 1.0 / DEG2RAD
 
   void setUp();
   void tearDown();
   void readMap(std::string);
-  void body(cluon::OD4Session &od4);
   Eigen::ArrayXXf simConeDetectorBox(Eigen::ArrayXXf, Eigen::ArrayXXf, float, float, float);
   Eigen::ArrayXXf simConeDetectorSlam(Eigen::ArrayXXf, Eigen::ArrayXXf, float, int);
-  void sendMatchedContainer(Eigen::MatrixXd, int, int, cluon::OD4Session &od4);
+  void sendMatchedContainer(Eigen::MatrixXd, int, int);
   void Cartesian2Spherical(double, double, double, opendlv::logic::sensation::Point &);
 };
 
