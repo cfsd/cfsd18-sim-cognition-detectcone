@@ -62,7 +62,7 @@ class DetectCone {
   void readMap(std::string);
   Eigen::ArrayXXf simConeDetectorBox(Eigen::ArrayXXf, Eigen::ArrayXXf, float, float, float);
   Eigen::ArrayXXf simConeDetectorSlam(Eigen::ArrayXXf, Eigen::ArrayXXf, float, int);
-  void sendMatchedContainer(Eigen::MatrixXd, int, int);
+  void sendMatchedContainer(Eigen::MatrixXd, int, int, cluon::data::TimeStamp);
   void Cartesian2Spherical(double, double, double, opendlv::logic::sensation::Point &);
 };
 

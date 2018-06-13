@@ -132,24 +132,27 @@ void DetectCone::body()
     Eigen::MatrixXd detectedConesSmallMat = ((detectedConesSmall.matrix()).transpose()).cast <double> ();
     Eigen::MatrixXd detectedConesBigMat = ((detectedConesBig.matrix()).transpose()).cast <double> ();
 
-    std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+/*    std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
     cluon::data::TimeStamp sampleTime = cluon::time::convert(tp);
     opendlv::logic::perception::ObjectProperty cones;
     std::string property = std::to_string(detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols());
     cones.property(property);
     cones.objectId(m_sendId);
-    m_od4.send(cones, sampleTime, m_senderStamp);
+    m_od4.send(cones, sampleTime, m_senderStamp);*/
     //std::cout<<"DetectCone sends: " <<"number of cones: "<<property<<" frame ID: "<<m_sendId<<" sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" senderStamp: "<<m_senderStamp<<std::endl;
 
     int type = 1;
     auto startLeft = std::chrono::system_clock::now();
-    sendMatchedContainer(detectedConesLeftMat, type, m_sendId);
+    cluon::data::TimeStamp sampleTime = cluon::time::now();
+    std::cout << "m_sendId: " << m_sendId << std::endl; // Will we use it?
+    int nCones = detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols();
+    sendMatchedContainer(detectedConesLeftMat, type, nCones, sampleTime);
     type = 2;
-    sendMatchedContainer(detectedConesRightMat, type, m_sendId);
+    sendMatchedContainer(detectedConesRightMat, type, nCones-detectedConesLeftMat.cols(), sampleTime);
     type = 3;
-    sendMatchedContainer(detectedConesSmallMat, type, m_sendId);
+    sendMatchedContainer(detectedConesSmallMat, type, nCones-detectedConesLeftMat.cols()-detectedConesRightMat.cols(), sampleTime);
     type = 4;
-    sendMatchedContainer(detectedConesBigMat, type, m_sendId);
+    sendMatchedContainer(detectedConesBigMat, type, nCones-detectedConesLeftMat.cols()-detectedConesRightMat.cols()-detectedConesSmallMat.cols(), sampleTime);
     //std::cout<<"Sending with ID: "<<m_sendId<<"\n";
     int rndmId = rand();
     while (m_sendId == rndmId){rndmId = rand();}
@@ -400,31 +403,31 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
 } // End of simConeDetectorSlam
 
 
-void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int startID)
+void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int startID, cluon::data::TimeStamp sampleTime)
 {
 //std::cout << "New location: " << m_location << " and heading: " << m_heading << std::endl;
 //std::cout << "Sending " << cones.cols() << " of type " << type << std::endl;
-  std::chrono::system_clock::time_point tp;
-  cluon::data::TimeStamp sampleTime;
+  //std::chrono::system_clock::time_point tp;
+  //cluon::data::TimeStamp sampleTime;
   opendlv::logic::sensation::Point conePoint;
   for(int n = 0; n < cones.cols(); n++){
 
     Cartesian2Spherical(cones(0,n), cones(1,n), 0, conePoint);
-    tp = std::chrono::system_clock::now();
-    sampleTime = cluon::time::convert(tp);
+    //tp = std::chrono::system_clock::now();
+    //sampleTime = cluon::time::now();
     opendlv::logic::perception::ObjectDirection coneDirection;
-    coneDirection.objectId(startID);
+    coneDirection.objectId(startID-n);
     coneDirection.azimuthAngle(conePoint.azimuthAngle());
     coneDirection.zenithAngle(conePoint.zenithAngle());
     m_od4.send(coneDirection, sampleTime, m_senderStamp);
 
     opendlv::logic::perception::ObjectDistance coneDistance;
-    coneDistance.objectId(startID);
+    coneDistance.objectId(startID-n);
     coneDistance.distance(conePoint.distance());
     m_od4.send(coneDistance, sampleTime, m_senderStamp);
 
     opendlv::logic::perception::ObjectType coneType;
-    coneType.objectId(startID);
+    coneType.objectId(startID-n);
     coneType.type(type);
     m_od4.send(coneType, sampleTime, m_senderStamp);
     //std::cout<<"DetectCone sends: " <<"direction: "<<conePoint.azimuthAngle()<<" distance: "<<conePoint.distance()<<" type: "<<type<< " sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" frame ID: "<<startID<< " senderStamp: "<<m_senderStamp<<std::endl;
