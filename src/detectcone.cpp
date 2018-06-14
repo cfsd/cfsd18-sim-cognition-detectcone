@@ -146,13 +146,13 @@ void DetectCone::body()
     cluon::data::TimeStamp sampleTime = cluon::time::now();
     std::cout << "m_sendId: " << m_sendId << std::endl; // Will we use it?
     int nCones = detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols();
-    sendMatchedContainer(detectedConesLeftMat, type, nCones, sampleTime);
+    sendMatchedContainer(detectedConesLeftMat, type, nCones-1, sampleTime);
     type = 2;
-    sendMatchedContainer(detectedConesRightMat, type, nCones-detectedConesLeftMat.cols(), sampleTime);
+    sendMatchedContainer(detectedConesRightMat, type, nCones-1-detectedConesLeftMat.cols(), sampleTime);
     type = 3;
-    sendMatchedContainer(detectedConesSmallMat, type, nCones-detectedConesLeftMat.cols()-detectedConesRightMat.cols(), sampleTime);
+    sendMatchedContainer(detectedConesSmallMat, type, nCones-1-detectedConesLeftMat.cols()-detectedConesRightMat.cols(), sampleTime);
     type = 4;
-    sendMatchedContainer(detectedConesBigMat, type, nCones-detectedConesLeftMat.cols()-detectedConesRightMat.cols()-detectedConesSmallMat.cols(), sampleTime);
+    sendMatchedContainer(detectedConesBigMat, type, nCones-1-detectedConesLeftMat.cols()-detectedConesRightMat.cols()-detectedConesSmallMat.cols(), sampleTime);
     //std::cout<<"Sending with ID: "<<m_sendId<<"\n";
     int rndmId = rand();
     while (m_sendId == rndmId){rndmId = rand();}
@@ -412,7 +412,7 @@ void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int start
   opendlv::logic::sensation::Point conePoint;
   for(int n = 0; n < cones.cols(); n++){
 
-    Cartesian2Spherical(cones(0,n), cones(1,n), 0, conePoint);
+    Cartesian2Spherical(cones(0,cones.cols()-1-n), cones(1,cones.cols()-1-n), 0, conePoint);
     //tp = std::chrono::system_clock::now();
     //sampleTime = cluon::time::now();
     opendlv::logic::perception::ObjectDirection coneDirection;
