@@ -40,8 +40,8 @@ services:
         network_mode: "host"
         volumes:
         - .:/opt/opendlv.data
-        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=20 \
-        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=5 --startX=${X} --startY=${Y} --startHeading=${YAW} \
+        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=10 \
+        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=10 --startX=${X} --startY=${Y} --startHeading=${YAW} \
         --mapFilename=${MAP}"
 
     # microservice for ...
@@ -51,8 +51,8 @@ services:
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
         --receiveTimeLimit=0.001 --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --axSpeedProfile=-1 --velocityLimit=15 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
-        --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=15 \
+        --axSpeedProfile=-1 --velocityLimit=10--mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
+        --usePolyFit=1 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
     cfsd18-sim-cognition-vehiclemodel:
@@ -63,6 +63,6 @@ services:
         --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
 
     cfsd18-sim-visualization:
-        image: cognition-track:19x
+        image: visualization:track1
         network_mode: "host"
         command: "--cid=${CID}"
