@@ -41,7 +41,7 @@ services:
         image: detectconelane:collectortest2
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=231 \
-        --receiveTimeLimit=0.001 --gatheringTimeMs=1000 --separationTimeMs=100 \
+        --gatheringTimeMs=50 --separationTimeMs=10 \
         --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
         --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5"
 
@@ -50,10 +50,10 @@ services:
         image: track:collectortest
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
-        --receiveTimeLimit=0.001 --gatheringTimeMs=10 --separationTimeMs=100 \
+        --gatheringTimeMs=50 --separationTimeMs=10 \
         --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --axSpeedProfile=-1 --velocityLimit=20--mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
+        --axSpeedProfile=-1 --velocityLimit=5--mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
