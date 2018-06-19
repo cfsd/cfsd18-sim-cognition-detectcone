@@ -20,7 +20,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <thread>
 #include <chrono>
 
 #include "detectcone.hpp"
@@ -44,9 +43,7 @@ m_od4(od4)
 , m_bigCones()
 , m_orangeVisibleInSlam()
 , m_locationMutex()
-, m_sendId()
 {
-  m_sendId = rand();
   setUp();
   std::cout<<"DetectCone set up with "<<commandlineArguments.size()<<" commandlineArguments: "<<std::endl;
   for (std::map<std::string, std::string >::iterator it = commandlineArguments.begin();it !=commandlineArguments.end();it++){
@@ -66,18 +63,17 @@ void DetectCone::nextContainer(cluon::data::Envelope &a_container)
     float x = frame.x();
     float y = frame.y();
     float yaw = frame.yaw();
-    //std::cout<<"DetectCone received: " <<"x: "<<x<<" y: "<<y<<" yaw: "<<yaw<<std::endl;
+
     {
       std::unique_lock<std::mutex> lockLocation(m_locationMutex);
       m_location << x,y;
       m_heading = yaw;
     }
-  }
-
-}
+  } // End of if
+} // End of nextContainer
 
 void DetectCone::body()
-{  //std::cout<<"DetectCone body: " <<"x: "<<m_location(0)<<" y: "<<m_location(1)<<" yaw: "<<m_heading<<std::endl;
+{
     Eigen::ArrayXXf locationCopy;
     float headingCopy;
     {
@@ -132,20 +128,12 @@ void DetectCone::body()
     Eigen::MatrixXd detectedConesSmallMat = ((detectedConesSmall.matrix()).transpose()).cast <double> ();
     Eigen::MatrixXd detectedConesBigMat = ((detectedConesBig.matrix()).transpose()).cast <double> ();
 
-    //std::cout<<"DetectCone sends: " <<"number of cones: "<<property<<" frame ID: "<<m_sendId<<" sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" senderStamp: "<<m_senderStamp<<std::endl;
-
-    auto startLeft = std::chrono::system_clock::now();
-    //cluon::data::TimeStamp sampleTime = cluon::time::now();
-    std::cout << "m_sendId: " << m_sendId << std::endl; // Will we use it?
-    //std::cout<<"Sending with ID: "<<m_sendId<<"\n";
+    //auto startLeft = std::chrono::system_clock::now();
 
     DetectCone::sendMatchedContainer(detectedConesLeftMat,detectedConesRightMat,detectedConesSmallMat,detectedConesBigMat);
 
-    int rndmId = rand();
-    while (m_sendId == rndmId){rndmId = rand();}
-    m_sendId = rndmId;
-    auto finishRight = std::chrono::system_clock::now();
-    auto timeSend = std::chrono::duration_cast<std::chrono::microseconds>(finishRight - startLeft);
+    //auto finishRight = std::chrono::system_clock::now();
+    //auto timeSend = std::chrono::duration_cast<std::chrono::microseconds>(finishRight - startLeft);
     //std::cout << "sendTime:" << timeSend.count() << std::endl;
 } // End of body
 
@@ -355,7 +343,7 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
       Eigen::VectorXi secondPart = Eigen::VectorXi::LinSpaced(nConesInFakeSlam-(nCones-closestConeIndex),0,nConesInFakeSlam-(nCones-closestConeIndex)-1);
       indices.resize(firstPart.size()+secondPart.size());
       indices.topRows(firstPart.size()) = firstPart;
-      indices.bottomRows(secondPart.size()) =secondPart;
+      indices.bottomRows(secondPart.size()) = secondPart;
     }
     // Otherwise simply take the closest and the following cones
     else
@@ -392,9 +380,6 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
 
 void DetectCone::sendMatchedContainer(Eigen::MatrixXd detectedConesLeftMat, Eigen::MatrixXd detectedConesRightMat, Eigen::MatrixXd detectedConesSmallMat, Eigen::MatrixXd detectedConesBigMat)
 {
-//std::cout << "New location: " << m_location << " and heading: " << m_heading << std::endl;
-//std::cout << "Sending " << cones.cols() << " of type " << type << std::endl;
-
   cluon::data::TimeStamp sampleTime = cluon::time::now();
   opendlv::logic::sensation::Point conePoint;
   int nCones = detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols();
