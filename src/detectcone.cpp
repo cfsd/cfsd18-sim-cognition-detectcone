@@ -20,7 +20,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <thread>
 #include <chrono>
 
 #include "detectcone.hpp"
@@ -44,9 +43,7 @@ m_od4(od4)
 , m_bigCones()
 , m_orangeVisibleInSlam()
 , m_locationMutex()
-, m_sendId()
 {
-  m_sendId = rand();
   setUp();
   std::cout<<"DetectCone set up with "<<commandlineArguments.size()<<" commandlineArguments: "<<std::endl;
   for (std::map<std::string, std::string >::iterator it = commandlineArguments.begin();it !=commandlineArguments.end();it++){
@@ -66,18 +63,17 @@ void DetectCone::nextContainer(cluon::data::Envelope &a_container)
     float x = frame.x();
     float y = frame.y();
     float yaw = frame.yaw();
-    //std::cout<<"DetectCone received: " <<"x: "<<x<<" y: "<<y<<" yaw: "<<yaw<<std::endl;
+
     {
       std::unique_lock<std::mutex> lockLocation(m_locationMutex);
       m_location << x,y;
       m_heading = yaw;
     }
-  }
-
-}
+  } // End of if
+} // End of nextContainer
 
 void DetectCone::body()
-{  //std::cout<<"DetectCone body: " <<"x: "<<m_location(0)<<" y: "<<m_location(1)<<" yaw: "<<m_heading<<std::endl;
+{
     Eigen::ArrayXXf locationCopy;
     float headingCopy;
     {
@@ -132,30 +128,12 @@ void DetectCone::body()
     Eigen::MatrixXd detectedConesSmallMat = ((detectedConesSmall.matrix()).transpose()).cast <double> ();
     Eigen::MatrixXd detectedConesBigMat = ((detectedConesBig.matrix()).transpose()).cast <double> ();
 
-    std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
-    cluon::data::TimeStamp sampleTime = cluon::time::convert(tp);
-    opendlv::logic::perception::ObjectProperty cones;
-    std::string property = std::to_string(detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols());
-    cones.property(property);
-    cones.objectId(m_sendId);
-    m_od4.send(cones, sampleTime, m_senderStamp);
-    //std::cout<<"DetectCone sends: " <<"number of cones: "<<property<<" frame ID: "<<m_sendId<<" sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" senderStamp: "<<m_senderStamp<<std::endl;
+    //auto startLeft = std::chrono::system_clock::now();
 
-    int type = 1;
-    auto startLeft = std::chrono::system_clock::now();
-    sendMatchedContainer(detectedConesLeftMat, type, m_sendId);
-    type = 2;
-    sendMatchedContainer(detectedConesRightMat, type, m_sendId);
-    type = 3;
-    sendMatchedContainer(detectedConesSmallMat, type, m_sendId);
-    type = 4;
-    sendMatchedContainer(detectedConesBigMat, type, m_sendId);
-    //std::cout<<"Sending with ID: "<<m_sendId<<"\n";
-    int rndmId = rand();
-    while (m_sendId == rndmId){rndmId = rand();}
-    m_sendId = rndmId;
-    auto finishRight = std::chrono::system_clock::now();
-    auto timeSend = std::chrono::duration_cast<std::chrono::microseconds>(finishRight - startLeft);
+    DetectCone::sendMatchedContainer(detectedConesLeftMat,detectedConesRightMat,detectedConesSmallMat,detectedConesBigMat);
+
+    //auto finishRight = std::chrono::system_clock::now();
+    //auto timeSend = std::chrono::duration_cast<std::chrono::microseconds>(finishRight - startLeft);
     //std::cout << "sendTime:" << timeSend.count() << std::endl;
 } // End of body
 
@@ -365,7 +343,7 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
       Eigen::VectorXi secondPart = Eigen::VectorXi::LinSpaced(nConesInFakeSlam-(nCones-closestConeIndex),0,nConesInFakeSlam-(nCones-closestConeIndex)-1);
       indices.resize(firstPart.size()+secondPart.size());
       indices.topRows(firstPart.size()) = firstPart;
-      indices.bottomRows(secondPart.size()) =secondPart;
+      indices.bottomRows(secondPart.size()) = secondPart;
     }
     // Otherwise simply take the closest and the following cones
     else
@@ -400,36 +378,74 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
 } // End of simConeDetectorSlam
 
 
-void DetectCone::sendMatchedContainer(Eigen::MatrixXd cones, int type, int startID)
+void DetectCone::sendMatchedContainer(Eigen::MatrixXd detectedConesLeftMat, Eigen::MatrixXd detectedConesRightMat, Eigen::MatrixXd detectedConesSmallMat, Eigen::MatrixXd detectedConesBigMat)
 {
-//std::cout << "New location: " << m_location << " and heading: " << m_heading << std::endl;
-//std::cout << "Sending " << cones.cols() << " of type " << type << std::endl;
-  std::chrono::system_clock::time_point tp;
-  cluon::data::TimeStamp sampleTime;
+  cluon::data::TimeStamp sampleTime = cluon::time::now();
   opendlv::logic::sensation::Point conePoint;
-  for(int n = 0; n < cones.cols(); n++){
+  int nCones = detectedConesLeftMat.cols()+detectedConesRightMat.cols()+detectedConesSmallMat.cols()+detectedConesBigMat.cols();
+  int mostSideCones = std::max(detectedConesLeftMat.cols(),detectedConesRightMat.cols());
+  int id = nCones-1;
+  int iLeft = 0;
+  int iRight = 0;
 
-    Cartesian2Spherical(cones(0,n), cones(1,n), 0, conePoint);
-    tp = std::chrono::system_clock::now();
-    sampleTime = cluon::time::convert(tp);
-    opendlv::logic::perception::ObjectDirection coneDirection;
-    coneDirection.objectId(startID);
-    coneDirection.azimuthAngle(conePoint.azimuthAngle());
-    coneDirection.zenithAngle(conePoint.zenithAngle());
-    m_od4.send(coneDirection, sampleTime, m_senderStamp);
+  // First send all big cones
+  for(int n = 0; n < detectedConesBigMat.cols(); n++){
+    Cartesian2Spherical(detectedConesBigMat(0,n), detectedConesBigMat(1,n), 0, conePoint);
 
-    opendlv::logic::perception::ObjectDistance coneDistance;
-    coneDistance.objectId(startID);
-    coneDistance.distance(conePoint.distance());
-    m_od4.send(coneDistance, sampleTime, m_senderStamp);
+    DetectCone::sendCone(conePoint, sampleTime, id, 4);
+    id = id - 1;
+  }
 
-    opendlv::logic::perception::ObjectType coneType;
-    coneType.objectId(startID);
-    coneType.type(type);
-    m_od4.send(coneType, sampleTime, m_senderStamp);
-    //std::cout<<"DetectCone sends: " <<"direction: "<<conePoint.azimuthAngle()<<" distance: "<<conePoint.distance()<<" type: "<<type<< " sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" frame ID: "<<startID<< " senderStamp: "<<m_senderStamp<<std::endl;
-  } // End of for
+  // Then send alternating left and right
+  for(int n = 0; n < mostSideCones; n++){
+    if(iLeft < detectedConesLeftMat.cols()){
+      Cartesian2Spherical(detectedConesLeftMat(0,n), detectedConesLeftMat(1,n), 0, conePoint);
+
+      DetectCone::sendCone(conePoint, sampleTime, id, 1);
+      iLeft = iLeft + 1;
+      id = id - 1;
+    }
+    if(iRight < detectedConesRightMat.cols()){
+      Cartesian2Spherical(detectedConesRightMat(0,n), detectedConesRightMat(1,n), 0, conePoint);
+
+      DetectCone::sendCone(conePoint, sampleTime, id, 2);
+      iRight = iRight + 1;
+      id = id - 1;
+    }
+  }
+
+  // Finally send all small cones
+  for(int n = 0; n < detectedConesSmallMat.cols(); n++){
+    Cartesian2Spherical(detectedConesSmallMat(0,n), detectedConesSmallMat(1,n), 0, conePoint);
+
+    DetectCone::sendCone(conePoint, sampleTime, id, 3);
+    id = id - 1;
+  }
+
 } // End of sendMatchedContainer
+
+
+void DetectCone::sendCone(opendlv::logic::sensation::Point conePoint, cluon::data::TimeStamp sampleTime, int id, int type)
+{
+  opendlv::logic::perception::ObjectDirection coneDirection;
+  coneDirection.objectId(id);
+  coneDirection.azimuthAngle(conePoint.azimuthAngle());
+  coneDirection.zenithAngle(conePoint.zenithAngle());
+  m_od4.send(coneDirection, sampleTime, m_senderStamp);
+
+  opendlv::logic::perception::ObjectDistance coneDistance;
+  coneDistance.objectId(id);
+  coneDistance.distance(conePoint.distance());
+  m_od4.send(coneDistance, sampleTime, m_senderStamp);
+
+  opendlv::logic::perception::ObjectType coneType;
+  coneType.objectId(id);
+  coneType.type(type);
+  m_od4.send(coneType, sampleTime, m_senderStamp);
+
+  //std::cout<<"DetectCone sends: " <<"direction: "<<conePoint.azimuthAngle()<<" distance: "<<conePoint.distance()<<" type: "<<type<< " sampleTime: "<<cluon::time::toMicroseconds(sampleTime)<<" ID: "<<id<< " senderStamp: "<<m_senderStamp<<std::endl;
+
+} // End of sendCone
 
 
 void DetectCone::Cartesian2Spherical(double x, double y, double z, opendlv::logic::sensation::Point &pointInSpherical)
