@@ -33,7 +33,7 @@ services:
         volumes:
         - .:/opt/opendlv.data
         command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=10 \
-        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=15 --startX=${X} --startY=${Y} --startHeading=${YAW} \
+        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=10 --startX=${X} --startY=${Y} --startHeading=${YAW} \
         --mapFilename=${MAP}"
 
     # microservice for ...
@@ -41,19 +41,19 @@ services:
         image: detectconelane:dev
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=231 \
-        --gatheringTimeMs=50 --separationTimeMs=10 \
+        --gatheringTimeMs=500 --separationTimeMs=100 \
         --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
         --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5"
 
     # microservice for ...
     cfsd18-cognition-track:
-        image: track:velocitytest
+        image: track:velocitytest #track:dev
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
-        --gatheringTimeMs=50 --separationTimeMs=10 \
+        --gatheringTimeMs=500 --separationTimeMs=100 \
         --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --axSpeedProfile=-1 --velocityLimit=5--mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
+        --axSpeedProfile=-1 --useAyReading=0 --velocityLimit=5 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5f --curveDetectionAngle=1.0f --curveDetectionPoints=5 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
