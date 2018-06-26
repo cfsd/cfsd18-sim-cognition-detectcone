@@ -54,7 +54,6 @@ class DetectCone {
   Eigen::ArrayXXf m_bigCones;
   bool m_orangeVisibleInSlam;
   std::mutex m_locationMutex;
-  int m_sendId;
   const double RAD2DEG = 57.295779513082325; // 1.0 / DEG2RAD
 
   void setUp();
@@ -62,7 +61,8 @@ class DetectCone {
   void readMap(std::string);
   Eigen::ArrayXXf simConeDetectorBox(Eigen::ArrayXXf, Eigen::ArrayXXf, float, float, float);
   Eigen::ArrayXXf simConeDetectorSlam(Eigen::ArrayXXf, Eigen::ArrayXXf, float, int);
-  void sendMatchedContainer(Eigen::MatrixXd, int, int);
+  void sendMatchedContainer(Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd);
+  void sendCone(opendlv::logic::sensation::Point, cluon::data::TimeStamp, int, int);
   void Cartesian2Spherical(double, double, double, opendlv::logic::sensation::Point &);
 };
 

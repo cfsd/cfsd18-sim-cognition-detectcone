@@ -27,42 +27,44 @@ services:
         --frame-id=232 --x=${X} --y=${Y} --yaw=${YAW}"
 
     # microservice for ...
-    cfsd18-cognition-detectconelane:
-        image: detectconelane:v0.1
-        network_mode: "host"
-        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 \
-        --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
-        --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5 --receiveTimeLimit=0.001"
-
-    # microservice for ...
     cfsd18-sim-cognition-detectcone:
-        image: detectcone:v0.1
+        image: detectcone:test
         network_mode: "host"
         volumes:
         - .:/opt/opendlv.data
-        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=20 \
-        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=5 --startX=${X} --startY=${Y} --startHeading=${YAW} \
+        command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=10 \
+        --detectRange=12 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=10 --startX=${X} --startY=${Y} --startHeading=${YAW} \
         --mapFilename=${MAP}"
 
     # microservice for ...
+    cfsd18-cognition-detectconelane:
+        image: detectconelane:test
+        network_mode: "host"
+        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=231 \
+        --gatheringTimeMs=500 --separationTimeMs=100 \
+        --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
+        --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5"
+
+    # microservice for ...
     cfsd18-cognition-track:
-        image: track:v0.1
+        image: track:test #track:dev
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
-        --receiveTimeLimit=0.001 --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
+        --gatheringTimeMs=500 --separationTimeMs=100 \
+        --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --axSpeedProfile=-1 --velocityLimit=15 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5 \
-        --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=15 \
+        --startAccVal=2 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=5 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
+        --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
     cfsd18-sim-cognition-vehiclemodel:
-        image: vehiclemodel:v0.1
+        image: vehiclemodel:test
         network_mode: "host"
         command: "/usr/bin/cfsd18-sim-cognition-vehiclemodel --cid=${CID} --verbose=0 --id=232 --freq=50 \
-        --frontToCog=${FTC} --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
+        --frontToCog=${FTC} --rollRes=0.02 --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
         --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
 
     cfsd18-sim-visualization:
-        image: cognition-track:19x
+        image: visualization:FSGb
         network_mode: "host"
         command: "--cid=${CID}"
