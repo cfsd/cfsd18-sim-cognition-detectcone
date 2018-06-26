@@ -45,10 +45,10 @@ m_od4(od4)
 , m_locationMutex()
 {
   setUp();
-  std::cout<<"DetectCone set up with "<<commandlineArguments.size()<<" commandlineArguments: "<<std::endl;
+  /*std::cout<<"DetectCone set up with "<<commandlineArguments.size()<<" commandlineArguments: "<<std::endl;
   for (std::map<std::string, std::string >::iterator it = commandlineArguments.begin();it !=commandlineArguments.end();it++){
     std::cout<<it->first<<" "<<it->second<<std::endl;
-  }
+  }*/
 }
 
 DetectCone::~DetectCone()
@@ -179,7 +179,7 @@ void DetectCone::readMap(std::string filename)
       else if(word.compare("2") == 0){rightCounter = rightCounter+1;}
       else if(word.compare("3") == 0){smallCounter = smallCounter+1;}
       else if(word.compare("4") == 0){bigCounter = bigCounter+1;}
-      else{std::cout << "ERROR in DetectCone::simDetectCone while counting types. Not a valid cone type." << std::endl;}
+      else{/*std::cout << "ERROR in DetectCone::simDetectCone while counting types. Not a valid cone type." << std::endl;*/}
     } // End of while
 
     file.close();
@@ -233,7 +233,7 @@ void DetectCone::readMap(std::string filename)
         tmpBigCones(bigCounter,1) = y;
         bigCounter = bigCounter+1;
       }
-      else{std::cout << "ERROR in DetectCone::simDetectCone while storing cones. Not a valid cone type." << std::endl;}
+      else{/*std::cout << "ERROR in DetectCone::simDetectCone while storing cones. Not a valid cone type." << std::endl;*/}
     } // End of while
 
     myFile.close();
@@ -370,7 +370,7 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
   // If no closest cone was found, the returned array is empty
   else
   {
-    std::cout << "Error: No cone found in fake slam detection" << std::endl;
+    //std::cout << "Error: No cone found in fake slam detection" << std::endl;
     Eigen::ArrayXXf detectedCones(0,2);
 
     return detectedCones;

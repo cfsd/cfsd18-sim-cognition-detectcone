@@ -28,7 +28,7 @@ services:
 
     # microservice for ...
     cfsd18-sim-cognition-detectcone:
-        image: detectcone:dev
+        image: detectcone:test
         network_mode: "host"
         volumes:
         - .:/opt/opendlv.data
@@ -38,7 +38,7 @@ services:
 
     # microservice for ...
     cfsd18-cognition-detectconelane:
-        image: detectconelane:dev
+        image: detectconelane:test
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=231 \
         --gatheringTimeMs=500 --separationTimeMs=100 \
@@ -47,24 +47,24 @@ services:
 
     # microservice for ...
     cfsd18-cognition-track:
-        image: track:velocitytest #track:dev
+        image: track:test #track:dev
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
         --gatheringTimeMs=500 --separationTimeMs=100 \
         --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --startAccVal=2 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=20 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.0f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
+        --startAccVal=2 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=5 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
     cfsd18-sim-cognition-vehiclemodel:
-        image: vehiclemodel:v0.1
+        image: vehiclemodel:test
         network_mode: "host"
         command: "/usr/bin/cfsd18-sim-cognition-vehiclemodel --cid=${CID} --verbose=0 --id=232 --freq=50 \
         --frontToCog=${FTC} --rollRes=0.02 --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
         --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
 
     cfsd18-sim-visualization:
-        image: visualization:track1
+        image: visualization:FSGb
         network_mode: "host"
         command: "--cid=${CID}"
