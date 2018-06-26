@@ -451,7 +451,7 @@ void DetectCone::sendCone(opendlv::logic::sensation::Point conePoint, cluon::dat
 void DetectCone::Cartesian2Spherical(double x, double y, double z, opendlv::logic::sensation::Point &pointInSpherical)
 {
   double distance = sqrt(x*x+y*y+z*z);
-  double azimuthAngle = atan2(x,y)*static_cast<double>(RAD2DEG);
+  double azimuthAngle = atan2(y,x)*static_cast<double>(RAD2DEG);
   double zenithAngle = atan2(z,sqrt(x*x+y*y))*static_cast<double>(RAD2DEG);
   pointInSpherical.distance(static_cast<float>(distance));
   pointInSpherical.azimuthAngle(static_cast<float>(azimuthAngle));
