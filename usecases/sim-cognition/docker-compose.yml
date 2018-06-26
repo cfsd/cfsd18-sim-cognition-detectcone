@@ -53,15 +53,15 @@ services:
         --gatheringTimeMs=500 --separationTimeMs=100 \
         --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --axSpeedProfile=-1 --useAyReading=0 --velocityLimit=5 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.5f --curveDetectionAngle=1.0f --curveDetectionPoints=5 \
+        --startAccVal=2 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=20 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.0f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC}"
 
     cfsd18-sim-cognition-vehiclemodel:
-        image: vehiclemodel:dev
+        image: vehiclemodel:v0.1
         network_mode: "host"
         command: "/usr/bin/cfsd18-sim-cognition-vehiclemodel --cid=${CID} --verbose=0 --id=232 --freq=50 \
-        --frontToCog=${FTC} --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
+        --frontToCog=${FTC} --rollRes=0.02 --mass=188 --momentOfInertiaZ=105 --length=${WB} --frictionCoefficient=${MU} \
         --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
 
     cfsd18-sim-visualization:
