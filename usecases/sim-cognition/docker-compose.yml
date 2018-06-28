@@ -42,8 +42,9 @@ services:
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=231 \
         --gatheringTimeMs=500 --separationTimeMs=100 \
-        --fakeSlamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
-        --coneWidthSeparationThreshold=3.5 --coneLengthSeparationThreshold=5.5"
+        --slamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
+        --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
+        --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0"
 
     # microservice for ...
     cfsd18-cognition-track:
