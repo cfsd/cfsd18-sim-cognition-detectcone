@@ -268,7 +268,7 @@ Eigen::ArrayXXf DetectCone::simConeDetectorBox(Eigen::ArrayXXf globalMap, Eigen:
   int nFound = 0;
   for(int i = 0; i < nCones; i = i+1)
   {
-    inLongitudinalInterval = localMap(i,0) < detectRange && localMap(i,0) >= 0;
+    inLongitudinalInterval = localMap(i,0) < detectRange && localMap(i,0) >= 1.7;
     inLateralInterval = localMap(i,1) >= -detectWidth/2 && localMap(i,1) <= detectWidth/2;
 
     if(inLongitudinalInterval && inLateralInterval)
@@ -304,11 +304,11 @@ Eigen::ArrayXXf DetectCone::simConeDetectorSlam(Eigen::ArrayXXf globalMap, Eigen
   float tmpDist;
   int closestConeIndex = -1;
 
-  // Find the closest cone. It will be the first in the returned sequence.
+  // Find the closest cone with positive x. It will be the first in the returned sequence.
   for(int i = 0; i < nCones; i = i+1)
   {
     tmpDist = ((localMap.row(i)).matrix()).norm();
-    if(tmpDist < shortestDist && tmpDist > 0)
+    if(tmpDist < shortestDist && tmpDist > 0 && localMap(i,0) > 0)
     {
       shortestDist = tmpDist;
       closestConeIndex = i;
