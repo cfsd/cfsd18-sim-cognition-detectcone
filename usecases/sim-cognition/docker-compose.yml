@@ -40,9 +40,9 @@ services:
     cfsd18-cognition-detectconelane:
         image: detectconelane:realismfactor
         network_mode: "host"
-        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=231 \
+        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=118 --slamStamp=120 --simDetectconeStamp=231 \
         --gatheringTimeMs=500 --separationTimeMs=100 \
-        --slamActivated=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
+        --alwaysSlam=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0"
 
