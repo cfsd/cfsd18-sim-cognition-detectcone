@@ -1,0 +1,10 @@
+1. measure the track
+    --maxConeWidthSeparation=3.0
+    --maxConeLengthSeparation=5.0 
+2. FAKESLAM 0 OFF 1 ON
+3. --guessDistance=--maxConeWidthSeparation=3.0
+4. If not work, the first thing is to increase Margin
+    --widthSeparationMargin=1.0 
+    --lengthSeparationMargin=1.0 
+5. If work in the 1st lap, but behave strange in the following laps
+   increase --nLapsToGo=1
