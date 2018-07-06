@@ -388,40 +388,60 @@ void DetectCone::sendMatchedContainer(Eigen::MatrixXd detectedConesLeftMat, Eige
   int iLeft = 0;
   int iRight = 0;
 
-  // First send all big cones
-  for(int n = 0; n < detectedConesBigMat.cols(); n++){
-    Cartesian2Spherical(detectedConesBigMat(0,n), detectedConesBigMat(1,n), 0, conePoint);
+  if(nCones == 0){
+    opendlv::logic::perception::ObjectDirection coneDirection;
+    coneDirection.objectId(0);
+    coneDirection.azimuthAngle(0);
+    coneDirection.zenithAngle(0);
+    m_od4.send(coneDirection, sampleTime, m_senderStamp);
 
-    DetectCone::sendCone(conePoint, sampleTime, id, 4);
-    id = id - 1;
+    opendlv::logic::perception::ObjectDistance coneDistance;
+    coneDistance.objectId(0);
+    coneDistance.distance(0);
+    m_od4.send(coneDistance, sampleTime, m_senderStamp);
+
+    opendlv::logic::perception::ObjectType coneType;
+    coneType.objectId(0);
+    coneType.type(666);
+    m_od4.send(coneType, sampleTime, m_senderStamp);
   }
+  else
+  {
+    // First send all big cones
+    for(int n = 0; n < detectedConesBigMat.cols(); n++){
+      Cartesian2Spherical(detectedConesBigMat(0,n), detectedConesBigMat(1,n), 0, conePoint);
 
-  // Then send alternating left and right
-  for(int n = 0; n < mostSideCones; n++){
-    if(iLeft < detectedConesLeftMat.cols()){
-      Cartesian2Spherical(detectedConesLeftMat(0,n), detectedConesLeftMat(1,n), 0, conePoint);
-
-      DetectCone::sendCone(conePoint, sampleTime, id, 1);
-      iLeft = iLeft + 1;
+      DetectCone::sendCone(conePoint, sampleTime, id, 4);
       id = id - 1;
     }
-    if(iRight < detectedConesRightMat.cols()){
-      Cartesian2Spherical(detectedConesRightMat(0,n), detectedConesRightMat(1,n), 0, conePoint);
 
-      DetectCone::sendCone(conePoint, sampleTime, id, 2);
-      iRight = iRight + 1;
+    // Then send alternating left and right
+    for(int n = 0; n < mostSideCones; n++){
+      if(iLeft < detectedConesLeftMat.cols()){
+        Cartesian2Spherical(detectedConesLeftMat(0,n), detectedConesLeftMat(1,n), 0, conePoint);
+
+        DetectCone::sendCone(conePoint, sampleTime, id, 1);
+        iLeft = iLeft + 1;
+        id = id - 1;
+      }
+      if(iRight < detectedConesRightMat.cols()){
+        Cartesian2Spherical(detectedConesRightMat(0,n), detectedConesRightMat(1,n), 0, conePoint);
+
+        DetectCone::sendCone(conePoint, sampleTime, id, 2);
+        iRight = iRight + 1;
+        id = id - 1;
+      }
+    }
+
+    // Finally send all small cones
+    for(int n = 0; n < detectedConesSmallMat.cols(); n++){
+      Cartesian2Spherical(detectedConesSmallMat(0,n), detectedConesSmallMat(1,n), 0, conePoint);
+
+      DetectCone::sendCone(conePoint, sampleTime, id, 3);
       id = id - 1;
     }
-  }
 
-  // Finally send all small cones
-  for(int n = 0; n < detectedConesSmallMat.cols(); n++){
-    Cartesian2Spherical(detectedConesSmallMat(0,n), detectedConesSmallMat(1,n), 0, conePoint);
-
-    DetectCone::sendCone(conePoint, sampleTime, id, 3);
-    id = id - 1;
-  }
-
+  } // End of else
 } // End of sendMatchedContainer
 
 
