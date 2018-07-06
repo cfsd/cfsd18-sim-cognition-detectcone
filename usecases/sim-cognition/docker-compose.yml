@@ -41,7 +41,7 @@ services:
         image: detectconelane:lapcount
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=118 --slamStamp=120 --simDetectconeStamp=231 \
-        --gatheringTimeMs=500 --separationTimeMs=100 \
+        --gatheringTimeMs=50 --separationTimeMs=10 \
         --alwaysSlam=${FAKESLAM} --guessDistance=3 --maxConeAngle=1.570796325 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
@@ -49,15 +49,15 @@ services:
 
     # microservice for ...
     cfsd18-cognition-track:
-        image: track:PID
+        image: track:nPID
         network_mode: "host"
         volumes:
         - .:/opt/opendlv.data
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
-        --gatheringTimeMs=500 --separationTimeMs=100 \
+        --gatheringTimeMs=50 --separationTimeMs=10 \
         --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --startAimVel=2 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=20 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.7f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
+        --startAimVel=1 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=20 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.0f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC} \
         --aKp=1 --aKd=0 --aKi=0 --bKp=2 --bKd=0 --bKi=0.2 --sKp=0.4 --sKd=0 --sKi=0.1 --keepConstVel=-1 --diffToBrakeVel=0.3 --critDiff=0.5 --critDiff2=0.1"
@@ -71,6 +71,6 @@ services:
         --magicFormulaCAlpha=25229 --magicFormulaC=1 --magicFormulaE=-2"
 
     cfsd18-sim-visualization:
-        image: visualization:FSG
+        image: visualization:FSGb
         network_mode: "host"
         command: "--cid=${CID}"
