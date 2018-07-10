@@ -33,7 +33,7 @@ services:
         volumes:
         - .:/opt/opendlv.data
         command: "/usr/bin/cfsd18-sim-cognition-detectcone --cid=${CID} --verbose=0 --id=231 --freq=10 \
-        --detectRange=10 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=10 --startX=${X} --startY=${Y} --startHeading=${YAW} \
+        --detectRange=10 --detectWidth=5 --fakeSlamActivated=${FAKESLAM} --nConesFakeSlam=4 --startX=${X} --startY=${Y} --startHeading=${YAW} \
         --mapFilename=${MAP}"
 
     # microservice for ...
@@ -49,18 +49,18 @@ services:
 
     # microservice for ...
     cfsd18-cognition-track:
-        image: track:nPID
+        image: track:smoothing
         network_mode: "host"
         volumes:
         - .:/opt/opendlv.data
         command: "/usr/bin/cfsd18-cognition-track --cid=${CID} --verbose=0 --id=221 --surfaceId=211 --speedId=232 \
         --gatheringTimeMs=50 --separationTimeMs=10 \
-        --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --previewTime=0.3 \
+        --distanceBetweenPoints=0.5 --useTraceBack=0 --useMoveOrigin=1 --useCurveFitPath=1 --previewTime=0.3 --minPrevDist=2 --steerRate=50 \
         --useSharp=0 --nSharpPreviewPoints=10 --sharpK1=0.17 --sharpKy=0.5 --sharpBigC=0.17 --sharpSmallC=1 \
-        --startAimVel=1 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=20 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.0f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
+        --startAimVel=1 --accFreq=1 --axSpeedProfile=5 --useAyReading=0 --velocityLimit=20 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-5 --headingErrorDependency=0.3f --curveDetectionAngle=1.0f --curveDetectionPoints=20 \
         --usePolyFit=0 --curvEstStepsize=5 --polynomialDegree=3 --pointsPerPolySegment=10 --segmentizePolyfit=0 \
         --wheelAngleLimit=25 --wheelBase=${WB} --frontToCog=${FTC} \
-        --aKp=1 --aKd=0 --aKi=0 --bKp=2 --bKd=0 --bKi=0.2 --sKp=0.4 --sKd=0 --sKi=0.1 --keepConstVel=-1 --diffToBrakeVel=0.3 --critDiff=0.5 --critDiff2=0.1"
+        --aKp=1 --aKd=0 --aKi=0 --bKp=2 --bKd=0 --bKi=0.2 --sKp=0.4 --sKd=0 --sKi=0.1 --keepConstVel=-4 --diffToBrakeVel=0.3 --critDiff=0.5 --critDiff2=0.1"
 
 
     cfsd18-sim-cognition-vehiclemodel:
