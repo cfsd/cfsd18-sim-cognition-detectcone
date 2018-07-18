@@ -40,12 +40,13 @@ services:
     cfsd18-cognition-detectconelane:
         image: detectconelane:dev
         network_mode: "host"
-        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=118 --slamStamp=120 --simDetectconeStamp=231 \
+        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectConeId=118 --slamId=120 --simDetectConeId=231 --attentionId=116 \
         --gatheringTimeMs=500 --separationTimeMs=100 \
         --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --maxConeAngle=1.570796325 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
-        --nLapsToGo=1 --lapCounterLockTime=2"
+        --nLapsToGo=1 --lapCounterLockTime=2 \
+        --useAccelerationMode=1"
 
     # microservice for ...
     cfsd18-cognition-acceleration:
@@ -58,7 +59,8 @@ services:
         --wheelAngleLimit=5 --wheelBase=${WB} --frontToCog=${FTC} \
         --useMoveOrigin=1 --steerRate=10 \
         --startAimVel=0.5 --useAyReading=0 --velocityLimit=30 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-10 --headingErrorDependency=0.7f \
-        --aKp=1 --aKd=0 --aKi=0 --bKp=2 --bKd=0.1 --bKi=0.05 --sKp=0.5 --sKd=0 --sKi=0.5 "
+        --aKp=1 --aKd=0 --aKi=0 --bKp=2 --bKd=0.1 --bKi=0.05 --sKp=0.5 --sKd=0 --sKi=0.5 
+        --trustInLastPathPoint=0.5 --aimDistance=50.0"
 
 
     cfsd18-sim-cognition-vehiclemodel:

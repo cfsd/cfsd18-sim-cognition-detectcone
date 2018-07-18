@@ -40,12 +40,13 @@ services:
     cfsd18-cognition-detectconelane:
         image: detectconelane:dev
         network_mode: "host"
-        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectconeStamp=118 --slamStamp=120 --simDetectconeStamp=231 \
+        command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectConeId=118 --slamId=120 --simDetectConeId=231 --attentionId=116 \
         --gatheringTimeMs=500 --separationTimeMs=100 \
         --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --maxConeAngle=1.570796325 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
-        --nLapsToGo=1 --lapCounterLockTime=10"
+        --nLapsToGo=1 --lapCounterLockTime=10 --refLatitude=57.719264 --refLongitude=11.957777 \
+        --useAccelerationMode=0"
 
     # microservice for ...
     cfsd18-cognition-track:
