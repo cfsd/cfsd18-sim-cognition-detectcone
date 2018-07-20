@@ -41,11 +41,11 @@ services:
         image: detectconelane:dev
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectConeId=118 --slamId=120 --simDetectConeId=231 --attentionId=116 \
-        --gatheringTimeMs=500 --separationTimeMs=100 \
+        --gatheringTimeMs=50 --separationTimeMs=10 \
         --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --latePerpGuessing=0 --maxConeAngle=1.570796325 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
-        --nLapsToGo=1 --lapCounterLockTime=2 \
+        --nLapsToGo=1 --lapCounterLockTime=2 --useNewConeLapCounter=1 --nMinOrangeFrames=2 --nMinDisappearanceFrames=2 --refLatitude=57.719264 --refLongitude=11.957777 \
         --useAccelerationMode=1"
 
     # microservice for ...
