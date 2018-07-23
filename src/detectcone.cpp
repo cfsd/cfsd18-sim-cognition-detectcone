@@ -404,6 +404,10 @@ void DetectCone::sendMatchedContainer(Eigen::MatrixXd detectedConesLeftMat, Eige
     coneType.objectId(0);
     coneType.type(666);
     m_od4.send(coneType, sampleTime, m_senderStamp);
+
+    opendlv::logic::perception::Object oranges;
+    oranges.objectId(0);
+    m_od4.send(oranges, sampleTime, m_senderStamp);
   }
   else
   {
@@ -440,6 +444,11 @@ void DetectCone::sendMatchedContainer(Eigen::MatrixXd detectedConesLeftMat, Eige
       DetectCone::sendCone(conePoint, sampleTime, id, 3);
       id = id - 1;
     }
+
+    // And the number of big orange cones
+    opendlv::logic::perception::Object oranges;
+    oranges.objectId(detectedConesBigMat.cols());
+    m_od4.send(oranges, sampleTime, m_senderStamp);
 
   } // End of else
 } // End of sendMatchedContainer
