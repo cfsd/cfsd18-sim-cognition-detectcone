@@ -45,8 +45,8 @@ services:
         --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --latePerpGuessing=0 --maxConeAngle=1.570796325 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
-        --nLapsToGo=1 --lapCounterLockTime=10 --useNewConeLapCounter=1 --nMinOrangeFrames=2 --nMinDisappearanceFrames=2 --refLatitude=57.719264 --refLongitude=11.957777 \
-        --useAccelerationMode=0"
+        --nLapsToGo=1 --lapCounterLockTime=10 --useNewConeLapCounter=1 --nMinOrangeFrames=2 --nMinDisappearanceFrames=2 \
+        --useAccelerationMode=0 --useSkidpadMode=0"
 
     # microservice for ...
     cfsd18-cognition-track:
