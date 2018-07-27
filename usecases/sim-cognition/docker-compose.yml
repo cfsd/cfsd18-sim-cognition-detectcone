@@ -42,7 +42,7 @@ services:
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectConeId=118 --slamId=120 --simDetectConeId=231 --attentionId=116 \
         --gatheringTimeMs=50 --separationTimeMs=10 \
-        --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --latePerpGuessing=0 --maxConeAngle=1.570796325 --behindMemoryDistance=2.0 \
+        --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --latePerpGuessing=0 --useCurveDetection=1 --maxConeAngle=1.570796325 --behindMemoryDistance=2.0 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
         --nLapsToGo=1 --lapCounterLockTime=10 --useNewConeLapCounter=1 --nMinOrangeFrames=2 --nMinDisappearanceFrames=2 \
