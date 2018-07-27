@@ -42,7 +42,7 @@ services:
         network_mode: "host"
         command: "/usr/bin/cfsd18-cognition-detectconelane --cid=${CID} --verbose=0 --id=211 --detectConeId=118 --slamId=120 --simDetectConeId=231 --attentionId=116 \
         --gatheringTimeMs=50 --separationTimeMs=10 \
-        --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --latePerpGuessing=0 --maxConeAngle=1.570796325 \
+        --alwaysSlam=${FAKESLAM} --guessDistance=3 --minGuessSeparation=1.5 --latePerpGuessing=0 --maxConeAngle=1.570796325 --behindMemoryDistance=2.0 \
         --maxConeWidthSeparation=3.0 --widthSeparationMargin=1.0 \
         --maxConeLengthSeparation=5.0 --lengthSeparationMargin=1.0 \
         --nLapsToGo=1 --lapCounterLockTime=2 --useNewConeLapCounter=1 --nMinOrangeFrames=2 --nMinDisappearanceFrames=2 \
@@ -60,7 +60,8 @@ services:
         --useMoveOrigin=1 --steerRate=10 \
         --startAimVel=0.5 --useAyReading=0 --velocityLimit=30 --mu=${MU} --axLimitPositive=5 --axLimitNegative=-10 --headingErrorDependency=0.7f \
         --aKp=1 --aKd=0 --aKi=0 --bKp=2 --bKd=0.1 --bKi=0.05 --sKp=0.5 --sKd=0 --sKi=0.5 
-        --trustInLastPathPoint=0.5 --aimDistance=50.0"
+        --staticTrustInLastPathPoint=0.5 --useDynamicTrust=0 --lowTrustLimDistance=10.0 --highTrustLimDistance=20.0 --lowTrustLim=0.0 --highTrustLim=1.0 \
+        --aimDistance=50.0"
 
 
     cfsd18-sim-cognition-vehiclemodel:
